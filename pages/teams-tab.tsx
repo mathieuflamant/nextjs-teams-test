@@ -36,8 +36,8 @@ export default function TeamsTab() {
           await exchangeTokenForCognito(token);
           
         } catch (authError) {
-          console.warn("Auth token not available in test environment:", authError);
-          setError("Authentication not available in test environment");
+          console.warn("Auth token not available:", authError);
+          setError(`Authentication failed: ${authError instanceof Error ? authError.message : 'Unknown error'}. Check Teams app configuration and Azure AD setup.`);
         }
         
       } catch (err) {

@@ -37,12 +37,32 @@ interface TokenExchangeResponse {
 
 // Microsoft Teams JWKS configuration
 const MICROSOFT_JWKS_URI = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
-const MICROSOFT_ISSUER = 'https://login.microsoftonline.com/{tenant-id}/v2.0';
+const MICROSOFT_ISSUER = process.env.MICROSOFT_ISSUER;
 
 // AWS Cognito configuration
-const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT || 'https://your-cognito-domain.auth.region.amazoncognito.com/oauth2/token';
-const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID || '';
-const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET || '';
+const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
+const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
+
+// Validate required environment variables
+if (!MICROSOFT_ISSUER) {
+  throw new Error('MICROSOFT_ISSUER environment variable is required');
+}
+if (!COGNITO_TOKEN_ENDPOINT) {
+  throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
+}
+if (!COGNITO_CLIENT_ID) {
+  throw new Error('COGNITO_CLIENT_ID environment variable is required');
+}
+if (!COGNITO_CLIENT_SECRET) {
+  throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
+}
+
+// Type assertions after validation
+const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
+const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
+const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
+const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 
 // Initialize JWKS client for Microsoft
 const jwksClientInstance = jwksClient({
@@ -73,8 +93,8 @@ function getKey(header: jwt.JwtHeader, callback: (err: Error | null, key?: strin
 async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   return new Promise((resolve, reject) => {
     jwt.verify(token, getKey, {
-      issuer: MICROSOFT_ISSUER,
-      audience: COGNITO_CLIENT_ID,
+      issuer: MICROSOFT_ISSUER_VALIDATED,
+      audience: COGNITO_CLIENT_ID_VALIDATED,
       algorithms: ['RS256']
     }, (err, decoded) => {
       if (err) {
@@ -96,11 +116,11 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoToken
     grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
     subject_token: teamsToken,
     subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',
-    client_id: COGNITO_CLIENT_ID,
-    client_secret: COGNITO_CLIENT_SECRET,
+    client_id: COGNITO_CLIENT_ID_VALIDATED,
+    client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
   });
 
-  const response = await fetch(COGNITO_TOKEN_ENDPOINT, {
+  const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
