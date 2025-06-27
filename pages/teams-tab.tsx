@@ -29,17 +29,23 @@ export default function TeamsTab() {
         
         // Try to get auth token
         try {
-          const token = await microsoftTeams.authentication.getAuthToken();
+          const token = await microsoftTeams.authentication.getAuthToken({
+            resources: [process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE!]
+          });
           setAuthToken(token);
-          
           // Exchange token for Cognito tokens
           await exchangeTokenForCognito(token);
-          
-        } catch (authError) {
-          console.warn("Auth token not available:", authError);
-          setError(`Authentication failed: ${authError instanceof Error ? authError.message : 'Unknown error'}. Check Teams app configuration and Azure AD setup.`);
+        } catch (authError: any) {
+          const errorMessage = authError?.message || 'Unknown error';
+
+          if (errorMessage.includes('consent_required') || errorMessage.includes('invalid_grant')) {
+            console.warn("Consent required, falling back to interactive auth");
+            await startTeamsAuthentication();
+          } else {
+            console.warn("Auth token not available:", errorMessage);
+            setError(`Authentication failed: ${errorMessage}.`);
+          }
         }
-        
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to initialize Teams');
         console.error("Teams initialization error:", err);
@@ -52,26 +58,21 @@ export default function TeamsTab() {
   const exchangeTokenForCognito = async (teamsToken: string) => {
     try {
       setTokenExchangeStatus('exchanging');
-      
       const response = await fetch("/api/auth/teams", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ token: teamsToken })
       });
-      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || 'Token exchange failed');
       }
-      
       const result = await response.json();
       setUserInfo(result.user as UserInfo);
       setTokenExchangeStatus('success');
-      
       console.log('Token exchange successful:', result);
-      
     } catch (error) {
       console.error('Token exchange error:', error);
       setTokenExchangeStatus('error');
@@ -97,8 +98,8 @@ export default function TeamsTab() {
         height: 535,
       });
 
-      console.log("Auth success:", result);
       // Parse the result which should contain user data
+      console.log("Interactive auth success:", result);
       const userData = typeof result === 'string' ? JSON.parse(result) : result;
       setUserInfo(userData.user as UserInfo);
       setTokenExchangeStatus('success');
@@ -106,7 +107,7 @@ export default function TeamsTab() {
     } catch (error) {
       console.error('Teams authentication error:', error);
       setTokenExchangeStatus('error');
-      setError(error instanceof Error ? error.message : 'Authentication failed');
+      setError(error instanceof Error ? error.message : 'Interactive authentication failed');
     }
   };
 
