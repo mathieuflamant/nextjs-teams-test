@@ -9,13 +9,25 @@ function AuthStartContent() {
   useEffect(() => {
     const initiateAuth = async () => {
       try {
-        // Get the auth URL from query parameters (Teams will provide this)
-        const authUrl = searchParams?.get('authUrl');
+        // Get parameters from the URL
+        const clientId = searchParams?.get('client_id');
+        const redirectUri = searchParams?.get('redirect_uri');
+        const scope = searchParams?.get('scope');
+        const state = searchParams?.get('state');
 
-        if (!authUrl) {
-          console.error('No auth URL provided');
+        if (!clientId || !redirectUri) {
+          console.error('Missing required parameters');
           return;
         }
+
+        // Construct the Azure AD authorization URL
+        const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?` +
+          `client_id=${encodeURIComponent(clientId)}` +
+          `&response_type=code` +
+          `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+          `&scope=${encodeURIComponent(scope || 'openid profile email')}` +
+          `&state=${encodeURIComponent(state || '')}` +
+          `&prompt=consent`;
 
         // Redirect to Azure AD for authentication
         window.location.href = authUrl;

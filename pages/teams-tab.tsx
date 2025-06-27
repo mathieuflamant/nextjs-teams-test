@@ -83,9 +83,16 @@ export default function TeamsTab() {
     try {
       setTokenExchangeStatus('exchanging');
 
+      // Construct the auth-start URL with OAuth2 parameters
+      const authStartUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth-start?` +
+        `client_id=${encodeURIComponent(process.env.NEXT_PUBLIC_AZURE_CLIENT_ID || '')}` +
+        `&redirect_uri=${encodeURIComponent(`${process.env.NEXT_PUBLIC_APP_URL}/auth-end`)}` +
+        `&scope=${encodeURIComponent('openid profile email api://b6624a53-c189-4382-94b8-2a08a54544e1/access_as_user')}` +
+        `&state=${encodeURIComponent('teams-auth-' + Date.now())}`;
+
       // Use Teams authentication flow
       const result = await microsoftTeams.authentication.authenticate({
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/auth-start`,
+        url: authStartUrl,
         width: 600,
         height: 535,
       });
