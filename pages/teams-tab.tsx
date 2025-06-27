@@ -66,9 +66,26 @@ export default function TeamsTab() {
         body: JSON.stringify({ token: teamsToken })
       });
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Token exchange failed');
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Token exchange failed');
+        } else {
+          const errorText = await response.text();
+          const errorDetails = `HTTP ${response.status} - Content-Type: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
+          throw new Error(`API Error: ${errorDetails}`);
+        }
       }
+
+      const contentType = response.headers.get('content-type');
+
+      if (!contentType || !contentType.includes('application/json')) {
+        const errorText = await response.text();
+        const errorDetails = `Expected JSON but got: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
+        throw new Error(`API Error: ${errorDetails}`);
+      }
+
       const result = await response.json();
       setUserInfo(result.user as UserInfo);
       setTokenExchangeStatus('success');
@@ -122,6 +139,38 @@ export default function TeamsTab() {
       
     } catch (error) {
       console.error("Teams function test error:", error);
+    }
+  };
+
+  const testApiEndpoint = async () => {
+    try {
+      setTokenExchangeStatus('testing');
+
+      const response = await fetch("/api/auth/teams?test=true");
+      const contentType = response.headers.get('content-type');
+
+      if (response.ok) {
+        if (contentType && contentType.includes('application/json')) {
+          const data = await response.json();
+          setTokenExchangeStatus('success');
+          setError(null);
+          setUserInfo(data.user as UserInfo);
+        } else {
+          const text = await response.text();
+          const errorDetails = `API returned non-JSON: ${contentType || 'none'} - Response: ${text.substring(0, 100)}...`;
+          setTokenExchangeStatus('error');
+          setError(`API Test Failed: ${errorDetails}`);
+        }
+      } else {
+        const text = await response.text();
+        const errorDetails = `HTTP ${response.status} - Content-Type: ${contentType || 'none'} - Response: ${text.substring(0, 100)}...`;
+        setTokenExchangeStatus('error');
+        setError(`API Test Failed: ${errorDetails}`);
+      }
+
+    } catch (error) {
+      setTokenExchangeStatus('error');
+      setError(`API Test Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -209,6 +258,13 @@ export default function TeamsTab() {
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
         >
           Test Teams Functions
+        </button>
+
+        <button
+          onClick={testApiEndpoint}
+          className="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+        >
+          Test API Endpoint
         </button>
 
         <button
