@@ -35,8 +35,8 @@ export default function TeamsTab() {
           setAuthToken(token);
           // Exchange token for Cognito tokens
           await exchangeTokenForCognito(token);
-        } catch (authError) {
-          const errorMessage = authError?.message || 'Unknown error';
+        } catch (authError: unknown) {
+          const errorMessage = authError instanceof Error ? authError.message : 'Unknown error';
 
           if (errorMessage.includes('consent_required') || errorMessage.includes('invalid_grant')) {
             console.warn("Consent required, falling back to interactive auth");
