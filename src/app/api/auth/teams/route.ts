@@ -2,6 +2,39 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 
+// Type definitions
+interface JwtPayload {
+  sub: string;
+  name?: string;
+  email?: string;
+  upn?: string;
+  iss: string;
+  aud: string;
+  exp: number;
+  iat: number;
+}
+
+interface CognitoTokens {
+  access_token: string;
+  refresh_token: string;
+  id_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+interface TokenExchangeResponse {
+  success: boolean;
+  message: string;
+  user?: {
+    sub: string;
+    name?: string;
+    email?: string;
+    upn?: string;
+  };
+  timestamp: string;
+  error?: string;
+}
+
 // Microsoft Teams JWKS configuration
 const MICROSOFT_JWKS_URI = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
 const MICROSOFT_ISSUER = 'https://login.microsoftonline.com/{tenant-id}/v2.0';
@@ -20,8 +53,13 @@ const jwksClientInstance = jwksClient({
 });
 
 // Get signing key for JWT verification
-function getKey(header: any, callback: (err: Error | null, key?: string) => void) {
-  jwksClientInstance.getSigningKey(header.kid, (err: any, key: any) => {
+function getKey(header: jwt.JwtHeader, callback: (err: Error | null, key?: string) => void) {
+  if (!header.kid) {
+    callback(new Error('No key ID in token header'));
+    return;
+  }
+ 
+  jwksClientInstance.getSigningKey(header.kid, (err: Error | null, key: jwksClient.SigningKey | undefined) => {
     if (err) {
       callback(err);
       return;
@@ -32,24 +70,28 @@ function getKey(header: any, callback: (err: Error | null, key?: string) => void
 }
 
 // Verify Microsoft Teams token
-async function verifyTeamsToken(token: string): Promise<any> {
+async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   return new Promise((resolve, reject) => {
     jwt.verify(token, getKey, {
       issuer: MICROSOFT_ISSUER,
-      audience: COGNITO_CLIENT_ID, // Should match your Teams app ID
+      audience: COGNITO_CLIENT_ID,
       algorithms: ['RS256']
-    }, (err: any, decoded: any) => {
+    }, (err, decoded) => {
       if (err) {
         reject(err);
         return;
       }
-      resolve(decoded);
+      if (!decoded || typeof decoded === 'string') {
+        reject(new Error('Token verification failed'));
+        return;
+      }
+      resolve(decoded as JwtPayload);
     });
   });
 }
 
 // Exchange Teams token for Cognito tokens
-async function exchangeTokenForCognito(teamsToken: string): Promise<any> {
+async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoTokens> {
   const tokenExchangeData = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
     subject_token: teamsToken,
@@ -71,11 +113,11 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<any> {
     throw new Error(`Cognito token exchange failed: ${response.status} ${errorText}`);
   }
 
-  return await response.json();
+  return await response.json() as CognitoTokens;
 }
 
 // Set secure session cookie
-function setSessionCookie(response: NextResponse, tokens: any) {
+function setSessionCookie(response: NextResponse, tokens: CognitoTokens) {
   const cookieOptions = {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -97,14 +139,14 @@ function setSessionCookie(response: NextResponse, tokens: any) {
   response.cookies.set('id_token', tokens.id_token, cookieOptions);
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest): Promise<NextResponse<TokenExchangeResponse>> {
   try {
     const body = await request.json();
-    const { token } = body;
+    const { token } = body as { token?: string };
 
     if (!token) {
       return NextResponse.json(
-        { success: false, error: 'Teams token is required' },
+        { success: false, error: 'Teams token is required' } as TokenExchangeResponse,
         { status: 400 }
       );
     }
@@ -130,7 +172,7 @@ export async function POST(request: NextRequest) {
         upn: verifiedToken.upn,
       },
       timestamp: new Date().toISOString()
-    });
+    } as TokenExchangeResponse);
 
     // Set session cookies
     setSessionCookie(response, cognitoTokens);
@@ -145,7 +187,7 @@ export async function POST(request: NextRequest) {
         success: false, 
         error: error instanceof Error ? error.message : 'Token exchange failed',
         timestamp: new Date().toISOString()
-      },
+      } as TokenExchangeResponse,
       { status: 500 }
     );
   }
@@ -162,4 +204,4 @@ export async function GET() {
     },
     timestamp: new Date().toISOString()
   });
-} 
+}

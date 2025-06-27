@@ -1,13 +1,20 @@
 import { useEffect, useState } from 'react';
 import * as microsoftTeams from "@microsoft/teams-js";
 
+interface UserInfo {
+  sub: string;
+  name: string;
+  email: string;
+  upn: string;
+}
+
 export default function TeamsTab() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [context, setContext] = useState<any>(null);
+  const [context, setContext] = useState<unknown>(null);
   const [tokenExchangeStatus, setTokenExchangeStatus] = useState<string>('idle');
-  const [userInfo, setUserInfo] = useState<any>(null);
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   useEffect(() => {
     const initializeTeams = async () => {
@@ -60,7 +67,7 @@ export default function TeamsTab() {
       }
       
       const result = await response.json();
-      setUserInfo(result.user);
+      setUserInfo(result.user as UserInfo);
       setTokenExchangeStatus('success');
       
       console.log('Token exchange successful:', result);
@@ -119,10 +126,8 @@ export default function TeamsTab() {
           <div className="p-4 bg-green-50 rounded-lg">
             <h2 className="font-semibold text-green-800 mb-2">Teams Context</h2>
             <div className="text-sm text-gray-700">
-              <div><strong>App Session ID:</strong> {context.appSessionId}</div>
-              <div><strong>Theme:</strong> {context.app.theme}</div>
-              <div><strong>Locale:</strong> {context.app.locale}</div>
-              <div><strong>Host Name:</strong> {context.app.host.name}</div>
+              <div><strong>Context Available:</strong> Yes</div>
+              <div><strong>Context Type:</strong> {typeof context}</div>
             </div>
           </div>
         )}
