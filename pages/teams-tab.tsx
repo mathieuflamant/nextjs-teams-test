@@ -8,14 +8,6 @@ interface UserInfo {
   upn: string;
 }
 
-interface TeamsAuthResult {
-  user: UserInfo;
-}
-
-interface TeamsAuthError {
-  message: string;
-}
-
 export default function TeamsTab() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
