@@ -44,6 +44,8 @@ const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
+const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
+const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
 
 // Validate required environment variables
 if (!MICROSOFT_ISSUER) {
@@ -61,6 +63,12 @@ if (!COGNITO_CLIENT_SECRET) {
 if (!APP_URL) {
   throw new Error('NEXT_PUBLIC_APP_URL environment variable is required');
 }
+if (!AZURE_APP_RESOURCE) {
+  throw new Error('NEXT_PUBLIC_AZURE_APP_RESOURCE environment variable is required');
+}
+if (!AZURE_CLIENT_ID) {
+  throw new Error('NEXT_PUBLIC_AZURE_CLIENT_ID environment variable is required');
+}
 
 // Type assertions after validation
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
@@ -68,6 +76,8 @@ const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 const APP_URL_VALIDATED = APP_URL as string;
+const AZURE_APP_RESOURCE_VALIDATED = AZURE_APP_RESOURCE as string;
+const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
 
 // Initialize JWKS client for Microsoft
 const jwksClientInstance = jwksClient({
@@ -229,6 +239,25 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Test endpoint for development
   if (test === 'true') {
     try {
+      // Check if required environment variables are set
+      const missingVars = [];
+      if (!MICROSOFT_ISSUER) missingVars.push('MICROSOFT_ISSUER');
+      if (!COGNITO_TOKEN_ENDPOINT) missingVars.push('COGNITO_TOKEN_ENDPOINT');
+      if (!COGNITO_CLIENT_ID) missingVars.push('COGNITO_CLIENT_ID');
+      if (!COGNITO_CLIENT_SECRET) missingVars.push('COGNITO_CLIENT_SECRET');
+      if (!APP_URL) missingVars.push('NEXT_PUBLIC_APP_URL');
+      if (!AZURE_APP_RESOURCE) missingVars.push('NEXT_PUBLIC_AZURE_APP_RESOURCE');
+      if (!AZURE_CLIENT_ID) missingVars.push('NEXT_PUBLIC_AZURE_CLIENT_ID');
+
+      if (missingVars.length > 0) {
+        return NextResponse.json({
+          success: false,
+          error: `Missing environment variables: ${missingVars.join(', ')}`,
+          user: null,
+          timestamp: new Date().toISOString()
+        });
+      }
+
       // Create a mock response for testing
       const mockUserData = {
         success: true,
@@ -245,7 +274,12 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     } catch (error) {
       console.error('Test endpoint error:', error);
       return NextResponse.json(
-        { success: false, error: 'Test failed' },
+        {
+          success: false,
+          error: error instanceof Error ? error.message : 'Test failed',
+          user: null,
+          timestamp: new Date().toISOString()
+        },
         { status: 500 }
       );
     }
