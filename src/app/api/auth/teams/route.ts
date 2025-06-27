@@ -224,6 +224,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const errorDescription = searchParams.get('error_description');
+  const test = searchParams.get('test');
+
+  // Test endpoint for development
+  if (test === 'true') {
+    try {
+      // Create a mock response for testing
+      const mockUserData = {
+        success: true,
+        user: {
+          sub: 'test-user-123',
+          name: 'Test User',
+          email: 'test@example.com',
+          upn: 'test@example.com',
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      return NextResponse.json(mockUserData);
+    } catch (error) {
+      return NextResponse.json(
+        { success: false, error: 'Test failed' },
+        { status: 500 }
+      );
+    }
+  }
 
   if (error) {
     console.error('Authorization error:', error, errorDescription);
