@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as microsoftTeams from "@microsoft/teams-js";
+import type { Context } from "@microsoft/teams-js"; // added for type safety
 
 interface UserInfo {
   sub: string;
@@ -12,7 +13,7 @@ export default function TeamsTab() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [context, setContext] = useState<unknown>(null);
+  const [context, setContext] = useState<Context | null>(null);
   const [tokenExchangeStatus, setTokenExchangeStatus] = useState<string>('idle');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
@@ -120,8 +121,8 @@ export default function TeamsTab() {
       const currentContext = await microsoftTeams.app.getContext();
       console.log("Current context:", currentContext);
       
-    } catch (err) {
-      console.error("Teams function test error:", err);
+    } catch (error) {
+      console.error("Teams function test error:", error);
     }
   };
 

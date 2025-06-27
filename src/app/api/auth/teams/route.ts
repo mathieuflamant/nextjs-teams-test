@@ -243,6 +243,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
       return NextResponse.json(mockUserData);
     } catch (error) {
+      console.error('Test endpoint error:', error);
       return NextResponse.json(
         { success: false, error: 'Test failed' },
         { status: 500 }
