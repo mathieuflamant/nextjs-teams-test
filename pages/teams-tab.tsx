@@ -79,6 +79,34 @@ export default function TeamsTab() {
     }
   };
 
+  const startTeamsAuthentication = async () => {
+    try {
+      setTokenExchangeStatus('exchanging');
+
+      // Use Teams authentication flow
+      microsoftTeams.authentication.authenticate({
+        url: `${process.env.NEXT_PUBLIC_APP_URL}/auth-start`,
+        width: 600,
+        height: 535,
+        successCallback: (result: any) => {
+          console.log("Auth success:", result);
+          setUserInfo(result.user as UserInfo);
+          setTokenExchangeStatus('success');
+        },
+        failureCallback: (reason: any) => {
+          console.error("Auth failed:", reason);
+          setTokenExchangeStatus('error');
+          setError(`Authentication failed: ${reason}`);
+        }
+      });
+
+    } catch (error) {
+      console.error('Teams authentication error:', error);
+      setTokenExchangeStatus('error');
+      setError(error instanceof Error ? error.message : 'Authentication failed');
+    }
+  };
+
   const testTeamsFunctions = async () => {
     try {
       // Test basic Teams SDK functions
@@ -177,6 +205,13 @@ export default function TeamsTab() {
           className="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
         >
           Test Teams Functions
+        </button>
+
+        <button
+          onClick={startTeamsAuthentication}
+          className="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+        >
+          Start Teams Authentication
         </button>
 
         <div className="text-xs text-gray-500 text-center">

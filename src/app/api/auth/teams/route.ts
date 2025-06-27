@@ -43,6 +43,7 @@ const MICROSOFT_ISSUER = process.env.MICROSOFT_ISSUER;
 const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 
 // Validate required environment variables
 if (!MICROSOFT_ISSUER) {
@@ -57,12 +58,16 @@ if (!COGNITO_CLIENT_ID) {
 if (!COGNITO_CLIENT_SECRET) {
   throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
 }
+if (!APP_URL) {
+  throw new Error('NEXT_PUBLIC_APP_URL environment variable is required');
+}
 
 // Type assertions after validation
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
 const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+const APP_URL_VALIDATED = APP_URL as string;
 
 // Initialize JWKS client for Microsoft
 const jwksClientInstance = jwksClient({
@@ -213,15 +218,73 @@ export async function POST(request: NextRequest): Promise<NextResponse<TokenExch
   }
 }
 
-// GET endpoint for testing/debugging
-export async function GET() {
-  return NextResponse.json({
-    success: true,
-    message: 'Teams token exchange endpoint is ready',
-    endpoints: {
-      microsoft_jwks: MICROSOFT_JWKS_URI,
-      cognito_token: COGNITO_TOKEN_ENDPOINT,
-    },
-    timestamp: new Date().toISOString()
-  });
+// GET endpoint for authorization code flow (auth-end redirect)
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const { searchParams } = new URL(request.url);
+  const code = searchParams.get('code');
+  const error = searchParams.get('error');
+  const errorDescription = searchParams.get('error_description');
+
+  if (error) {
+    console.error('Authorization error:', error, errorDescription);
+    return NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?error=${encodeURIComponent(error)}&error_description=${encodeURIComponent(errorDescription || '')}`);
+  }
+
+  if (!code) {
+    console.error('No authorization code received');
+    return NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?error=no_code&error_description=No authorization code received`);
+  }
+
+  try {
+    // Exchange authorization code for access token
+    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: COGNITO_CLIENT_ID_VALIDATED,
+        client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
+        code: code,
+        redirect_uri: `${APP_URL_VALIDATED}/auth-end`,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token exchange failed:', errorText);
+      return NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?error=token_exchange_failed&error_description=${encodeURIComponent(errorText)}`);
+    }
+
+    const tokenData = await tokenResponse.json();
+    const accessToken = tokenData.access_token;
+
+    // Verify the access token
+    const verifiedToken = await verifyTeamsToken(accessToken);
+
+    // Exchange for Cognito tokens
+    const cognitoTokens = await exchangeTokenForCognito(accessToken);
+
+    // Create response with user data
+    const userData = {
+      success: true,
+      user: {
+        sub: verifiedToken.sub,
+        name: verifiedToken.name,
+        email: verifiedToken.email,
+        upn: verifiedToken.upn,
+      },
+      timestamp: new Date().toISOString()
+    };
+
+    // Redirect to auth-end with success data
+    const successUrl = `${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`;
+    return NextResponse.redirect(successUrl);
+
+  } catch (error) {
+    console.error('Authorization code flow error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?error=processing_failed&error_description=${encodeURIComponent(errorMessage)}`);
+  }
 }
