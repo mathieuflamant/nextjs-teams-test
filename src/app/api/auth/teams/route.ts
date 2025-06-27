@@ -278,9 +278,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       timestamp: new Date().toISOString()
     };
 
-    // Redirect to auth-end with success data
-    const successUrl = `${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`;
-    return NextResponse.redirect(successUrl);
+    // Create response and set session cookies
+    const response = NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`);
+    setSessionCookie(response, cognitoTokens);
+
+    return response;
 
   } catch (error) {
     console.error('Authorization code flow error:', error);

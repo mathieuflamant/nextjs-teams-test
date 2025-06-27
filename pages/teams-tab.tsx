@@ -8,6 +8,14 @@ interface UserInfo {
   upn: string;
 }
 
+interface TeamsAuthResult {
+  user: UserInfo;
+}
+
+interface TeamsAuthError {
+  message: string;
+}
+
 export default function TeamsTab() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
@@ -84,21 +92,17 @@ export default function TeamsTab() {
       setTokenExchangeStatus('exchanging');
 
       // Use Teams authentication flow
-      microsoftTeams.authentication.authenticate({
+      const result = await microsoftTeams.authentication.authenticate({
         url: `${process.env.NEXT_PUBLIC_APP_URL}/auth-start`,
         width: 600,
         height: 535,
-        successCallback: (result: any) => {
-          console.log("Auth success:", result);
-          setUserInfo(result.user as UserInfo);
-          setTokenExchangeStatus('success');
-        },
-        failureCallback: (reason: any) => {
-          console.error("Auth failed:", reason);
-          setTokenExchangeStatus('error');
-          setError(`Authentication failed: ${reason}`);
-        }
       });
+
+      console.log("Auth success:", result);
+      // Parse the result which should contain user data
+      const userData = typeof result === 'string' ? JSON.parse(result) : result;
+      setUserInfo(userData.user as UserInfo);
+      setTokenExchangeStatus('success');
 
     } catch (error) {
       console.error('Teams authentication error:', error);

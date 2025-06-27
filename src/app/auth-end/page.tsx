@@ -3,6 +3,15 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 
+interface TeamsWindow extends Window {
+  microsoftTeams?: {
+    authentication: {
+      notifySuccess: (result: unknown) => void;
+      notifyFailure: (reason: string) => void;
+    };
+  };
+}
+
 export default function AuthEnd() {
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -53,8 +62,9 @@ export default function AuthEnd() {
         }
 
         // Also try to use Teams SDK if available
-        if (window.parent && (window.parent as any).microsoftTeams) {
-          (window.parent as any).microsoftTeams.authentication.notifySuccess(result);
+        const parentWindow = window.parent as TeamsWindow;
+        if (parentWindow && parentWindow.microsoftTeams) {
+          parentWindow.microsoftTeams.authentication.notifySuccess(result);
         }
 
       } catch (error) {
@@ -71,8 +81,9 @@ export default function AuthEnd() {
         }
 
         // Also try to use Teams SDK if available
-        if (window.parent && (window.parent as any).microsoftTeams) {
-          (window.parent as any).microsoftTeams.authentication.notifyFailure(
+        const parentWindow = window.parent as TeamsWindow;
+        if (parentWindow && parentWindow.microsoftTeams) {
+          parentWindow.microsoftTeams.authentication.notifyFailure(
             error instanceof Error ? error.message : 'Authentication failed'
           );
         }
