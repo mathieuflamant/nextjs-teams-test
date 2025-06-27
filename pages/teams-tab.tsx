@@ -122,7 +122,7 @@ export default function TeamsTab() {
           </div>
         </div>
 
-        {context && (
+        {context !== null && (
           <div className="p-4 bg-green-50 rounded-lg">
             <h2 className="font-semibold text-green-800 mb-2">Teams Context</h2>
             <div className="text-sm text-gray-700">
