@@ -152,9 +152,17 @@ export default function TeamsTab() {
       if (response.ok) {
         if (contentType && contentType.includes('application/json')) {
           const data = await response.json();
-          setTokenExchangeStatus('success');
-          setError(null);
-          setUserInfo(data.user as UserInfo);
+
+          if (data.success) {
+            setTokenExchangeStatus('success');
+            setError(null);
+            setUserInfo(data.user as UserInfo);
+          } else {
+            setTokenExchangeStatus('error');
+            // Display debug information in the error message
+            const debugInfo = data.debug ? `\n\nDebug Info:\n${Object.entries(data.debug).map(([key, value]) => `${key}: ${value}`).join('\n')}` : '';
+            setError(`API Test Failed: ${data.error}${debugInfo}`);
+          }
         } else {
           const text = await response.text();
           const errorDetails = `API returned non-JSON: ${contentType || 'none'} - Response: ${text.substring(0, 100)}...`;

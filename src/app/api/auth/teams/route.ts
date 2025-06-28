@@ -234,6 +234,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   // Test endpoint for development
   if (test === 'true') {
     try {
+      // Debug: Log all environment variables
+      console.log('Environment variables debug:');
+      console.log('MICROSOFT_ISSUER:', MICROSOFT_ISSUER ? 'SET' : 'NOT SET');
+      console.log('COGNITO_TOKEN_ENDPOINT:', COGNITO_TOKEN_ENDPOINT ? 'SET' : 'NOT SET');
+      console.log('COGNITO_CLIENT_ID:', COGNITO_CLIENT_ID ? 'SET' : 'NOT SET');
+      console.log('COGNITO_CLIENT_SECRET:', COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET');
+      console.log('APP_URL:', APP_URL ? 'SET' : 'NOT SET');
+      console.log('AZURE_APP_RESOURCE:', AZURE_APP_RESOURCE ? 'SET' : 'NOT SET');
+      console.log('AZURE_CLIENT_ID:', AZURE_CLIENT_ID ? 'SET' : 'NOT SET');
+
       // Check if required environment variables are set
       const missingVars = [];
       if (!MICROSOFT_ISSUER) missingVars.push('MICROSOFT_ISSUER');
@@ -248,6 +258,15 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json({
           success: false,
           error: `Missing environment variables: ${missingVars.join(', ')}`,
+          debug: {
+            microsoftIssuer: MICROSOFT_ISSUER ? 'SET' : 'NOT SET',
+            cognitoTokenEndpoint: COGNITO_TOKEN_ENDPOINT ? 'SET' : 'NOT SET',
+            cognitoClientId: COGNITO_CLIENT_ID ? 'SET' : 'NOT SET',
+            cognitoClientSecret: COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET',
+            appUrl: APP_URL ? 'SET' : 'NOT SET',
+            azureAppResource: AZURE_APP_RESOURCE ? 'SET' : 'NOT SET',
+            azureClientId: AZURE_CLIENT_ID ? 'SET' : 'NOT SET'
+          },
           user: null,
           timestamp: new Date().toISOString()
         });
