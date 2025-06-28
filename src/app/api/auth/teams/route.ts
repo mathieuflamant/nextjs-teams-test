@@ -47,30 +47,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
 const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
 
-// Validate required environment variables
-if (!MICROSOFT_ISSUER) {
-  throw new Error('MICROSOFT_ISSUER environment variable is required');
-}
-if (!COGNITO_TOKEN_ENDPOINT) {
-  throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
-}
-if (!COGNITO_CLIENT_ID) {
-  throw new Error('COGNITO_CLIENT_ID environment variable is required');
-}
-if (!COGNITO_CLIENT_SECRET) {
-  throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
-}
-if (!APP_URL) {
-  throw new Error('NEXT_PUBLIC_APP_URL environment variable is required');
-}
-if (!AZURE_APP_RESOURCE) {
-  throw new Error('NEXT_PUBLIC_AZURE_APP_RESOURCE environment variable is required');
-}
-if (!AZURE_CLIENT_ID) {
-  throw new Error('NEXT_PUBLIC_AZURE_CLIENT_ID environment variable is required');
-}
-
-// Type assertions after validation
+// Type assertions (without validation to allow page to load)
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
 const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
@@ -105,6 +82,14 @@ function getKey(header: jwt.JwtHeader, callback: (err: Error | null, key?: strin
 
 // Verify Microsoft Teams token
 async function verifyTeamsToken(token: string): Promise<JwtPayload> {
+  // Validate required environment variables
+  if (!MICROSOFT_ISSUER) {
+    throw new Error('MICROSOFT_ISSUER environment variable is required');
+  }
+  if (!AZURE_CLIENT_ID) {
+    throw new Error('NEXT_PUBLIC_AZURE_CLIENT_ID environment variable is required');
+  }
+
   return new Promise((resolve, reject) => {
     jwt.verify(token, getKey, {
       issuer: MICROSOFT_ISSUER_VALIDATED,
@@ -126,6 +111,17 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
 
 // Exchange Teams token for Cognito tokens
 async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoTokens> {
+  // Validate required environment variables
+  if (!COGNITO_TOKEN_ENDPOINT) {
+    throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
+  }
+  if (!COGNITO_CLIENT_ID) {
+    throw new Error('COGNITO_CLIENT_ID environment variable is required');
+  }
+  if (!COGNITO_CLIENT_SECRET) {
+    throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
+  }
+
   const tokenExchangeData = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
     subject_token: teamsToken,
