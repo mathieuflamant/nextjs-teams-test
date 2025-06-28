@@ -76,7 +76,6 @@ const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 const APP_URL_VALIDATED = APP_URL as string;
-const AZURE_APP_RESOURCE_VALIDATED = AZURE_APP_RESOURCE as string;
 const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
 
 // Initialize JWKS client for Microsoft
@@ -109,7 +108,7 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   return new Promise((resolve, reject) => {
     jwt.verify(token, getKey, {
       issuer: MICROSOFT_ISSUER_VALIDATED,
-      audience: COGNITO_CLIENT_ID_VALIDATED,
+      audience: AZURE_CLIENT_ID_VALIDATED,
       algorithms: ['RS256']
     }, (err, decoded) => {
       if (err) {
