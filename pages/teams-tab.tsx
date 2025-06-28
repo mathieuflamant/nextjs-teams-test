@@ -282,6 +282,15 @@ export default function TeamsTab() {
           Start Teams Authentication
         </button>
 
+        {authToken && (
+          <button
+            onClick={() => exchangeTokenForCognito(authToken)}
+            className="w-full bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+          >
+            Exchange Token for Cognito
+          </button>
+        )}
+
         <div className="text-xs text-gray-500 text-center">
           This app tests Teams-Cognito token exchange. Requires proper Azure AD and Cognito configuration.
         </div>
