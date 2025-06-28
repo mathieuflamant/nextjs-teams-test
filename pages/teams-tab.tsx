@@ -33,8 +33,8 @@ export default function TeamsTab() {
             resources: [process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE!]
           });
           setAuthToken(token);
-          // Exchange token for Cognito tokens
-          await exchangeTokenForCognito(token);
+          // Don't automatically exchange token - let user test manually
+          // await exchangeTokenForCognito(token);
         } catch (authError: unknown) {
           const errorMessage = authError instanceof Error ? authError.message : 'Unknown error';
 
