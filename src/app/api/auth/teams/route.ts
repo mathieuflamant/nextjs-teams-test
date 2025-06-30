@@ -285,10 +285,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             appUrl: APP_URL ? 'SET' : 'NOT SET',
             azureAppResource: AZURE_APP_RESOURCE ? 'SET' : 'NOT SET',
             azureClientId: AZURE_CLIENT_ID ? 'SET' : 'NOT SET'
-          },
-          processEnv: {
-            allKeys: Object.keys(process.env).sort(),
-            allValues: Object.fromEntries(
+            allprocessEnvKeys: Object.keys(process.env).sort(),
+            allprocessValues: Object.fromEntries(
               Object.entries(process.env).map(([key, value]) => [
                 key,
                 value || 'undefined'
