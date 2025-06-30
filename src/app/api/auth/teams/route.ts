@@ -90,6 +90,13 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
     throw new Error('NEXT_PUBLIC_AZURE_CLIENT_ID environment variable is required');
   }
 
+  console.log('Verifying Teams token:', {
+    tokenPreview: token.substring(0, 50) + '...',
+    tokenLength: token.length,
+    issuer: MICROSOFT_ISSUER_VALIDATED,
+    audience: AZURE_CLIENT_ID_VALIDATED
+  });
+
   return new Promise((resolve, reject) => {
     jwt.verify(token, getKey, {
       issuer: MICROSOFT_ISSUER_VALIDATED,
@@ -97,13 +104,25 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
       algorithms: ['RS256']
     }, (err, decoded) => {
       if (err) {
+        console.error('Token verification failed:', err.message);
         reject(err);
         return;
       }
       if (!decoded || typeof decoded === 'string') {
+        console.error('Token verification failed: invalid decoded token');
         reject(new Error('Token verification failed'));
         return;
       }
+      console.log('Token verified successfully:', {
+        sub: decoded.sub,
+        name: decoded.name,
+        email: decoded.email,
+        upn: decoded.upn,
+        iss: decoded.iss,
+        aud: decoded.aud,
+        exp: decoded.exp,
+        iat: decoded.iat
+      });
       resolve(decoded as JwtPayload);
     });
   });
