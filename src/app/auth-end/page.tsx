@@ -37,10 +37,41 @@ function AuthEndContent() {
         const response = await fetch(`/api/auth/teams?code=${encodeURIComponent(code)}`);
 
         if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Token exchange failed');
+          const errorText = await response.text();
+          throw new Error(`Token exchange failed: ${response.status} - ${errorText}`);
         }
 
+        // Check if response is a redirect
+        if (response.redirected) {
+          // Parse the redirect URL to get the user data
+          const redirectUrl = new URL(response.url);
+          const success = redirectUrl.searchParams.get('success');
+          const dataParam = redirectUrl.searchParams.get('data');
+
+          if (success === 'true' && dataParam) {
+            const result = JSON.parse(decodeURIComponent(dataParam));
+            setStatus('success');
+
+            // Notify Teams of success
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({
+                type: 'auth-success',
+                result: result
+              }, '*');
+            }
+
+            // Also try to use Teams SDK if available
+            const parentWindow = window.parent as TeamsWindow;
+            if (parentWindow && parentWindow.microsoftTeams) {
+              parentWindow.microsoftTeams.authentication.notifySuccess(result);
+            }
+            return;
+          } else {
+            throw new Error('Invalid redirect response');
+          }
+        }
+
+        // Handle JSON response (fallback)
         const result = await response.json();
         setStatus('success');
 
