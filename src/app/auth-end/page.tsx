@@ -48,26 +48,37 @@ function AuthEndContent() {
           const success = redirectUrl.searchParams.get('success');
           const dataParam = redirectUrl.searchParams.get('data');
 
+          console.log('Redirect URL:', response.url);
+          console.log('Success param:', success);
+          console.log('Data param exists:', !!dataParam);
+
           if (success === 'true' && dataParam) {
-            const result = JSON.parse(decodeURIComponent(dataParam));
-            setStatus('success');
+            try {
+              const result = JSON.parse(decodeURIComponent(dataParam));
+              setStatus('success');
 
-            // Notify Teams of success
-            if (window.parent && window.parent !== window) {
-              window.parent.postMessage({
-                type: 'auth-success',
-                result: result
-              }, '*');
-            }
+              // Notify Teams of success
+              if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                  type: 'auth-success',
+                  result: result
+                }, '*');
+              }
 
-            // Also try to use Teams SDK if available
-            const parentWindow = window.parent as TeamsWindow;
-            if (parentWindow && parentWindow.microsoftTeams) {
-              parentWindow.microsoftTeams.authentication.notifySuccess(result);
+              // Also try to use Teams SDK if available
+              const parentWindow = window.parent as TeamsWindow;
+              if (parentWindow && parentWindow.microsoftTeams) {
+                parentWindow.microsoftTeams.authentication.notifySuccess(result);
+              }
+              return;
+            } catch (parseError) {
+              console.error('Failed to parse data param:', parseError);
+              throw new Error(`Failed to parse user data: ${parseError}`);
             }
-            return;
           } else {
-            throw new Error('Invalid redirect response');
+            console.error('Missing success or data params in redirect');
+            console.error('Redirect URL params:', Object.fromEntries(redirectUrl.searchParams.entries()));
+            throw new Error('Invalid redirect response - missing success or data parameters');
           }
         }
 
