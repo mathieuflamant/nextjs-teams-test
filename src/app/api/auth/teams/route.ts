@@ -46,6 +46,7 @@ const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
 const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
+const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 
 // Type assertions (without validation to allow page to load)
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
@@ -54,6 +55,7 @@ const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 const APP_URL_VALIDATED = APP_URL as string;
 const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
+const AZURE_CLIENT_SECRET_VALIDATED = AZURE_CLIENT_SECRET as string;
 
 // Initialize JWKS client for Microsoft
 const jwksClientInstance = jwksClient({
@@ -262,6 +264,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       console.log('APP_URL:', APP_URL ? 'SET' : 'NOT SET');
       console.log('AZURE_APP_RESOURCE:', AZURE_APP_RESOURCE ? 'SET' : 'NOT SET');
       console.log('AZURE_CLIENT_ID:', AZURE_CLIENT_ID ? 'SET' : 'NOT SET');
+      console.log('AZURE_CLIENT_SECRET:', AZURE_CLIENT_SECRET ? 'SET' : 'NOT SET');
 
       // Check if required environment variables are set
       const missingVars = [];
@@ -272,6 +275,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (!APP_URL) missingVars.push('NEXT_PUBLIC_APP_URL');
       if (!AZURE_APP_RESOURCE) missingVars.push('NEXT_PUBLIC_AZURE_APP_RESOURCE');
       if (!AZURE_CLIENT_ID) missingVars.push('NEXT_PUBLIC_AZURE_CLIENT_ID');
+      if (!AZURE_CLIENT_SECRET) missingVars.push('AZURE_CLIENT_SECRET');
 
       if (missingVars.length > 0) {
         return NextResponse.json({
@@ -284,7 +288,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             cognitoClientSecret: COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET',
             appUrl: APP_URL ? 'SET' : 'NOT SET',
             azureAppResource: AZURE_APP_RESOURCE ? 'SET' : 'NOT SET',
-            azureClientId: AZURE_CLIENT_ID ? 'SET' : 'NOT SET'
+            azureClientId: AZURE_CLIENT_ID ? 'SET' : 'NOT SET',
+            azureClientSecret: AZURE_CLIENT_SECRET ? 'SET' : 'NOT SET'
           },
           user: null,
           timestamp: new Date().toISOString()
@@ -337,8 +342,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: COGNITO_CLIENT_ID_VALIDATED,
-        client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
+        client_id: AZURE_CLIENT_ID_VALIDATED,
+        client_secret: AZURE_CLIENT_SECRET_VALIDATED,
         code: code,
         redirect_uri: `${APP_URL_VALIDATED}/auth-end`,
       }),
