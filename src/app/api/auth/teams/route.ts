@@ -334,6 +334,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    // Debug: Log the token exchange parameters (without exposing the secret)
+    console.log('Token exchange debug:');
+    console.log('Client ID:', AZURE_CLIENT_ID_VALIDATED);
+    console.log('Client Secret length:', AZURE_CLIENT_SECRET_VALIDATED?.length || 0);
+    console.log('Client Secret preview:', AZURE_CLIENT_SECRET_VALIDATED?.substring(0, 4) + '...');
+    console.log('Code length:', code?.length || 0);
+    console.log('Redirect URI:', `${APP_URL_VALIDATED}/auth-end`);
+
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
       method: 'POST',
