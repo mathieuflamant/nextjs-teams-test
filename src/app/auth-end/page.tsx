@@ -34,16 +34,7 @@ function AuthEndContent() {
         }
 
         // Exchange the auth code for tokens via our API
-        const response = await fetch('/api/auth/teams', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            code,
-            grant_type: 'authorization_code'
-          })
-        });
+        const response = await fetch(`/api/auth/teams?code=${encodeURIComponent(code)}`);
 
         if (!response.ok) {
           const errorData = await response.json();
