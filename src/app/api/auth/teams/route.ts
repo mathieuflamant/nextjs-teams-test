@@ -388,8 +388,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       clientSecretParamLength: azureRequestBody.match(/client_secret=([^&]*)/)?.[1]?.length || 0
     });
 
-    // Exchange authorization code for access token
-    const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
+    // Exchange authorization code for access token using MICROSOFT_ISSUER as base
+    const azureTokenEndpoint = MICROSOFT_ISSUER_VALIDATED.replace('/v2.0', '/oauth2/v2.0/token');
+    console.log('Using Azure AD token endpoint:', azureTokenEndpoint);
+    
+    const tokenResponse = await fetch(azureTokenEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
