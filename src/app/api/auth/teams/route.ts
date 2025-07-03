@@ -395,6 +395,11 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     });
 
     // Exchange authorization code for access token using MICROSOFT_ISSUER as base
+    console.log('About to use MICROSOFT_ISSUER_VALIDATED:', {
+      value: MICROSOFT_ISSUER_VALIDATED,
+      type: typeof MICROSOFT_ISSUER_VALIDATED,
+      isUndefined: MICROSOFT_ISSUER_VALIDATED === undefined
+    });
     const azureTokenEndpoint = MICROSOFT_ISSUER_VALIDATED.replace('/v2.0', '/oauth2/v2.0/token');
     console.log('Using Azure AD token endpoint:', azureTokenEndpoint);
     
