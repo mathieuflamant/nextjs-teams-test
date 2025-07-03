@@ -142,8 +142,8 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   });
 }
 
-// Exchange Teams token for Cognito tokens
-async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoTokens> {
+// Authenticate with Cognito using Teams token as external IdP
+async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
   // Validate required environment variables
   if (!COGNITO_TOKEN_ENDPOINT) {
     throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
@@ -155,28 +155,16 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoToken
     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
   }
 
-  // Debug: Log client secret details
-  console.log('Client secret debug:', {
-    length: COGNITO_CLIENT_SECRET_VALIDATED.length,
-    preview: COGNITO_CLIENT_SECRET_VALIDATED.substring(0, 10) + '...',
-    containsSpecialChars: /[^a-zA-Z0-9]/.test(COGNITO_CLIENT_SECRET_VALIDATED),
-    rawValue: COGNITO_CLIENT_SECRET_VALIDATED
-  });
+  console.log('Authenticating with Cognito using Teams token as external IdP');
 
-  const tokenExchangeData = new URLSearchParams({
-    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-    subject_token: teamsToken,
-    subject_token_type: 'urn:ietf:params:oauth:token-type:id_token',
+  // Use Cognito's InitiateAuth with external provider
+  const authData = new URLSearchParams({
+    grant_type: 'authorization_code',
     client_id: COGNITO_CLIENT_ID_VALIDATED,
     client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
-  });
-
-  // Debug: Log the encoded request body
-  const requestBody = tokenExchangeData.toString();
-  console.log('Token exchange request body:', {
-    bodyLength: requestBody.length,
-    bodyPreview: requestBody.substring(0, 200) + '...',
-    clientSecretInBody: requestBody.includes('client_secret=')
+    // For external IdP, we need to use the external provider token
+    external_provider_token: teamsToken,
+    external_provider: 'AzureAD', // or whatever you configured in Cognito
   });
 
   const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
@@ -184,17 +172,17 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoToken
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: requestBody,
+    body: authData.toString(),
   });
 
   if (!response.ok) {
     const errorText = await response.text();
-    console.error('Token exchange failed:', {
+    console.error('Cognito authentication failed:', {
       status: response.status,
       statusText: response.statusText,
       errorText: errorText
     });
-    throw new Error(`Cognito token exchange failed: ${response.status} ${errorText}`);
+    throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
   }
 
   return await response.json() as CognitoTokens;
