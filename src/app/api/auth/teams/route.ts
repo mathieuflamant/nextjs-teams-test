@@ -57,6 +57,11 @@ console.log('Environment variables loaded:', {
 
 // Type assertions (without validation to allow page to load)
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
+
+console.log('Validated variables debug:', {
+  MICROSOFT_ISSUER_VALIDATED: MICROSOFT_ISSUER_VALIDATED || 'NOT SET',
+  MICROSOFT_ISSUER_VALIDATED_type: typeof MICROSOFT_ISSUER_VALIDATED
+});
 const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
