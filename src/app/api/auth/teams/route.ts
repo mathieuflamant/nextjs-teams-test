@@ -240,15 +240,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<TokenExch
     const verifiedToken = await verifyTeamsToken(token);
     console.log('Teams token verified successfully');
 
-    // Exchange Teams token for Cognito tokens
-    console.log('Exchanging token for Cognito tokens...');
-    const cognitoTokens = await exchangeTokenForCognito(token);
-    console.log('Token exchange completed successfully');
+    // Skip Cognito token exchange for now - just use Teams token
+    console.log('Skipping Cognito token exchange - using Teams token directly');
 
-    // Create response
+    // Create response with Teams user data
     const response = NextResponse.json({
       success: true,
-      message: 'Token exchange completed successfully',
+      message: 'Teams authentication successful',
       user: {
         sub: verifiedToken.sub,
         name: verifiedToken.name,
@@ -258,8 +256,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<TokenExch
       timestamp: new Date().toISOString()
     } as TokenExchangeResponse);
 
-    // Set session cookies
-    setSessionCookie(response, cognitoTokens);
+    // Note: Not setting Cognito session cookies since we're not exchanging tokens
 
     return response;
 
@@ -428,8 +425,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Verify the access token
     const verifiedToken = await verifyTeamsToken(accessToken);
 
-    // Exchange for Cognito tokens
-    const cognitoTokens = await exchangeTokenForCognito(accessToken);
+    // Skip Cognito token exchange - just use Teams token
+    console.log('Skipping Cognito token exchange in GET endpoint');
 
     // Create response with user data
     const userData = {
@@ -443,9 +440,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       timestamp: new Date().toISOString()
     };
 
-    // Create response and set session cookies
+    // Create response without Cognito session cookies
     const response = NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`);
-    setSessionCookie(response, cognitoTokens);
 
     return response;
 
