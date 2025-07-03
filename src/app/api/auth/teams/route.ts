@@ -48,6 +48,12 @@ const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
 const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
 const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 
+// Debug: Log environment variable loading
+console.log('Environment variables loaded:', {
+  COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
+  AZURE_CLIENT_SECRET: AZURE_CLIENT_SECRET ? `SET (${AZURE_CLIENT_SECRET.length} chars)` : 'NOT SET'
+});
+
 // Type assertions (without validation to allow page to load)
 const MICROSOFT_ISSUER_VALIDATED = MICROSOFT_ISSUER as string;
 const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
@@ -143,6 +149,14 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoToken
     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
   }
 
+  // Debug: Log client secret details
+  console.log('Client secret debug:', {
+    length: COGNITO_CLIENT_SECRET_VALIDATED.length,
+    preview: COGNITO_CLIENT_SECRET_VALIDATED.substring(0, 10) + '...',
+    containsSpecialChars: /[^a-zA-Z0-9]/.test(COGNITO_CLIENT_SECRET_VALIDATED),
+    rawValue: COGNITO_CLIENT_SECRET_VALIDATED
+  });
+
   const tokenExchangeData = new URLSearchParams({
     grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
     subject_token: teamsToken,
@@ -151,16 +165,29 @@ async function exchangeTokenForCognito(teamsToken: string): Promise<CognitoToken
     client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
   });
 
+  // Debug: Log the encoded request body
+  const requestBody = tokenExchangeData.toString();
+  console.log('Token exchange request body:', {
+    bodyLength: requestBody.length,
+    bodyPreview: requestBody.substring(0, 200) + '...',
+    clientSecretInBody: requestBody.includes('client_secret=')
+  });
+
   const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
     },
-    body: tokenExchangeData.toString(),
+    body: requestBody,
   });
 
   if (!response.ok) {
     const errorText = await response.text();
+    console.error('Token exchange failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText: errorText
+    });
     throw new Error(`Cognito token exchange failed: ${response.status} ${errorText}`);
   }
 
@@ -335,12 +362,31 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
   try {
     // Debug: Log the token exchange parameters (without exposing the secret)
-    console.log('Token exchange debug:');
+    console.log('Azure AD token exchange debug:');
     console.log('Client ID:', AZURE_CLIENT_ID_VALIDATED);
     console.log('Client Secret length:', AZURE_CLIENT_SECRET_VALIDATED?.length || 0);
     console.log('Client Secret preview:', AZURE_CLIENT_SECRET_VALIDATED?.substring(0, 4) + '...');
+    console.log('Client Secret contains special chars:', /[^a-zA-Z0-9]/.test(AZURE_CLIENT_SECRET_VALIDATED || ''));
     console.log('Code length:', code?.length || 0);
     console.log('Redirect URI:', `${APP_URL_VALIDATED}/auth-end`);
+
+    // Create the request body for Azure AD token exchange
+    // Note: URLSearchParams automatically URL-encodes values, but let's ensure proper encoding
+    const azureTokenExchangeData = new URLSearchParams();
+    azureTokenExchangeData.append('grant_type', 'authorization_code');
+    azureTokenExchangeData.append('client_id', AZURE_CLIENT_ID_VALIDATED);
+    azureTokenExchangeData.append('client_secret', AZURE_CLIENT_SECRET_VALIDATED);
+    azureTokenExchangeData.append('code', code);
+    azureTokenExchangeData.append('redirect_uri', `${APP_URL_VALIDATED}/auth-end`);
+
+    // Debug: Log the Azure AD request body (without exposing the secret)
+    const azureRequestBody = azureTokenExchangeData.toString();
+    console.log('Azure AD request body debug:', {
+      bodyLength: azureRequestBody.length,
+      bodyPreview: azureRequestBody.substring(0, 200) + '...',
+      containsClientSecret: azureRequestBody.includes('client_secret='),
+      clientSecretParamLength: azureRequestBody.match(/client_secret=([^&]*)/)?.[1]?.length || 0
+    });
 
     // Exchange authorization code for access token
     const tokenResponse = await fetch('https://login.microsoftonline.com/common/oauth2/v2.0/token', {
@@ -348,18 +394,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
-      body: new URLSearchParams({
-        grant_type: 'authorization_code',
-        client_id: AZURE_CLIENT_ID_VALIDATED,
-        client_secret: AZURE_CLIENT_SECRET_VALIDATED,
-        code: code,
-        redirect_uri: `${APP_URL_VALIDATED}/auth-end`,
-      }),
+      body: azureRequestBody,
     });
 
     if (!tokenResponse.ok) {
       const errorText = await tokenResponse.text();
-      console.error('Token exchange failed:', errorText);
+      console.error('Azure AD token exchange failed:', {
+        status: tokenResponse.status,
+        statusText: tokenResponse.statusText,
+        errorText: errorText,
+        headers: Object.fromEntries(tokenResponse.headers.entries())
+      });
       return NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?error=token_exchange_failed&error_description=${encodeURIComponent(errorText)}`);
     }
 
