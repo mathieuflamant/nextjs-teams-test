@@ -51,6 +51,7 @@ const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 // Debug: Log environment variable loading
 console.log('Environment variables loaded:', {
   COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
+  MICROSOFT_ISSUER: MICROSOFT_ISSUER || 'NOT SET',
   AZURE_CLIENT_SECRET: AZURE_CLIENT_SECRET ? `SET (${AZURE_CLIENT_SECRET.length} chars)` : 'NOT SET'
 });
 
