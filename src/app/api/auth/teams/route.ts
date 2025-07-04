@@ -14,13 +14,14 @@ interface JwtPayload {
   iat: number;
 }
 
-interface CognitoTokens {
-  access_token: string;
-  refresh_token: string;
-  id_token: string;
-  token_type: string;
-  expires_in: number;
-}
+// TODO: Use when implementing Cognito federation
+// interface CognitoTokens {
+//   access_token: string;
+//   refresh_token: string;
+//   id_token: string;
+//   token_type: string;
+//   expires_in: number;
+// }
 
 interface TokenExchangeResponse {
   success: boolean;
@@ -62,9 +63,12 @@ console.log('Validated variables debug:', {
   MICROSOFT_ISSUER_VALIDATED: MICROSOFT_ISSUER_VALIDATED || 'NOT SET',
   MICROSOFT_ISSUER_VALIDATED_type: typeof MICROSOFT_ISSUER_VALIDATED
 });
-const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
-const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
-const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+
+// TODO: Use when implementing Cognito federation
+// const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
+// const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
+// const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+
 const APP_URL_VALIDATED = APP_URL as string;
 const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
 const AZURE_CLIENT_SECRET_VALIDATED = AZURE_CLIENT_SECRET as string;
