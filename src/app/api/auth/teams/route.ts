@@ -47,6 +47,7 @@ const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
 const COGNITO_REGION = process.env.COGNITO_REGION;
+const COGNITO_EXTERNAL_PROVIDER = process.env.COGNITO_EXTERNAL_PROVIDER;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
 const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
@@ -72,6 +73,7 @@ console.log('Validated variables debug:', {
 
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+const COGNITO_EXTERNAL_PROVIDER_VALIDATED = COGNITO_EXTERNAL_PROVIDER as string;
 const COGNITO_USER_POOL_ID_VALIDATED = COGNITO_USER_POOL_ID as string;
 const COGNITO_REGION_VALIDATED = COGNITO_REGION as string;
 
@@ -167,6 +169,9 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
   if (!COGNITO_REGION) {
     throw new Error('COGNITO_REGION environment variable is required');
   }
+  if (!COGNITO_EXTERNAL_PROVIDER) {
+    throw new Error('COGNITO_EXTERNAL_PROVIDER environment variable is required');
+  }
 
   console.log('Authenticating with Cognito using Teams token as external IdP', {
     userEmail: userEmail || 'not provided'
@@ -184,7 +189,7 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     AuthParameters: {
       USERNAME: userEmail || 'teams-user',
       PASSWORD: teamsToken, // Using Teams token as password for external auth
-      'custom:external_provider': 'AzureAD',
+      'custom:external_provider': COGNITO_EXTERNAL_PROVIDER_VALIDATED,
       'custom:external_token': teamsToken
     }
   };
@@ -358,6 +363,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       console.log('Environment variables debug:');
       console.log('MICROSOFT_ISSUER:', MICROSOFT_ISSUER ? 'SET' : 'NOT SET');
       console.log('COGNITO_REGION:', COGNITO_REGION ? 'SET' : 'NOT SET');
+      console.log('COGNITO_EXTERNAL_PROVIDER:', COGNITO_EXTERNAL_PROVIDER_VALIDATED);
       console.log('COGNITO_CLIENT_ID:', COGNITO_CLIENT_ID ? 'SET' : 'NOT SET');
       console.log('COGNITO_CLIENT_SECRET:', COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET');
       console.log('APP_URL:', APP_URL ? 'SET' : 'NOT SET');
