@@ -43,7 +43,6 @@ const MICROSOFT_ISSUER = process.env.MICROSOFT_ISSUER;
 const USE_COGNITO_FEDERATION = process.env.USE_COGNITO_FEDERATION === 'true';
 
 // AWS Cognito configuration
-const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
@@ -71,7 +70,6 @@ console.log('Validated variables debug:', {
   MICROSOFT_ISSUER_VALIDATED_type: typeof MICROSOFT_ISSUER_VALIDATED
 });
 
-const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
 const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 const COGNITO_USER_POOL_ID_VALIDATED = COGNITO_USER_POOL_ID as string;
@@ -157,21 +155,12 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
 // Authenticate with Cognito using Teams token as external IdP
 async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
   // Validate required environment variables
-  if (!COGNITO_TOKEN_ENDPOINT) {
-    throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
-  }
   if (!COGNITO_CLIENT_ID) {
     throw new Error('COGNITO_CLIENT_ID environment variable is required');
   }
   if (!COGNITO_CLIENT_SECRET) {
     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
   }
-
-    console.log('Authenticating with Cognito using Teams token as external IdP', {
-    userEmail: userEmail || 'not provided'
-  });
-
-  // Validate required environment variables
   if (!COGNITO_USER_POOL_ID) {
     throw new Error('COGNITO_USER_POOL_ID environment variable is required');
   }
@@ -179,10 +168,14 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     throw new Error('COGNITO_REGION environment variable is required');
   }
 
+  console.log('Authenticating with Cognito using Teams token as external IdP', {
+    userEmail: userEmail || 'not provided'
+  });
+
   console.log('Using real Cognito federation with User Pool:', COGNITO_USER_POOL_ID_VALIDATED);
 
-  // Use Cognito's InitiateAuth API for external provider authentication
-  const cognitoEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
+  // Use Cognito's Identity Provider API
+  const cognitoIdpEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
 
   const authData = {
     AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
@@ -196,14 +189,15 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     }
   };
 
-  console.log('Calling Cognito InitiateAuth API:', {
-    endpoint: cognitoEndpoint,
+  console.log('Calling Cognito Identity Provider API:', {
+    idpEndpoint: cognitoIdpEndpoint,
+    region: COGNITO_REGION_VALIDATED,
     userPoolId: COGNITO_USER_POOL_ID_VALIDATED,
     clientId: COGNITO_CLIENT_ID_VALIDATED,
     authFlow: 'ADMIN_USER_PASSWORD_AUTH'
   });
 
-  const response = await fetch(cognitoEndpoint, {
+  const response = await fetch(cognitoIdpEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/x-amz-json-1.1',
@@ -363,7 +357,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Debug: Log all environment variables
       console.log('Environment variables debug:');
       console.log('MICROSOFT_ISSUER:', MICROSOFT_ISSUER ? 'SET' : 'NOT SET');
-      console.log('COGNITO_TOKEN_ENDPOINT:', COGNITO_TOKEN_ENDPOINT ? 'SET' : 'NOT SET');
+      console.log('COGNITO_REGION:', COGNITO_REGION ? 'SET' : 'NOT SET');
       console.log('COGNITO_CLIENT_ID:', COGNITO_CLIENT_ID ? 'SET' : 'NOT SET');
       console.log('COGNITO_CLIENT_SECRET:', COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET');
       console.log('APP_URL:', APP_URL ? 'SET' : 'NOT SET');
@@ -374,7 +368,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       // Check if required environment variables are set
       const missingVars = [];
       if (!MICROSOFT_ISSUER) missingVars.push('MICROSOFT_ISSUER');
-      if (!COGNITO_TOKEN_ENDPOINT) missingVars.push('COGNITO_TOKEN_ENDPOINT');
+      if (!COGNITO_REGION) missingVars.push('COGNITO_REGION');
       if (!COGNITO_CLIENT_ID) missingVars.push('COGNITO_CLIENT_ID');
       if (!COGNITO_CLIENT_SECRET) missingVars.push('COGNITO_CLIENT_SECRET');
       if (!APP_URL) missingVars.push('NEXT_PUBLIC_APP_URL');
@@ -388,7 +382,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
           error: `Missing environment variables: ${missingVars.join(', ')}`,
           debug: {
             microsoftIssuer: MICROSOFT_ISSUER ? 'SET' : 'NOT SET',
-            cognitoTokenEndpoint: COGNITO_TOKEN_ENDPOINT ? 'SET' : 'NOT SET',
+            cognitoRegion: COGNITO_REGION ? 'SET' : 'NOT SET',
             cognitoClientId: COGNITO_CLIENT_ID ? 'SET' : 'NOT SET',
             cognitoClientSecret: COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET',
             appUrl: APP_URL ? 'SET' : 'NOT SET',

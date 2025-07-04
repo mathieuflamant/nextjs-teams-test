@@ -11,7 +11,7 @@ MICROSOFT_ISSUER=https://login.microsoftonline.com/{tenant-id}/v2.0
 
 # AWS Cognito Configuration
 # Replace with your actual Cognito domain and region
-COGNITO_TOKEN_ENDPOINT=https://your-cognito-domain.auth.region.amazoncognito.com/oauth2/token
+COGNITO_REGION=us-east-1
 COGNITO_CLIENT_ID=your-cognito-client-id
 COGNITO_CLIENT_SECRET=your-cognito-client-secret
 
