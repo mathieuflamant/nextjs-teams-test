@@ -142,74 +142,76 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   });
 }
 
+// TODO: Implement Cognito federation when ready
 // Authenticate with Cognito using Teams token as external IdP
-async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
-  // Validate required environment variables
-  if (!COGNITO_TOKEN_ENDPOINT) {
-    throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
-  }
-  if (!COGNITO_CLIENT_ID) {
-    throw new Error('COGNITO_CLIENT_ID environment variable is required');
-  }
-  if (!COGNITO_CLIENT_SECRET) {
-    throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
-  }
+// async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
+//   // Validate required environment variables
+//   if (!COGNITO_TOKEN_ENDPOINT) {
+//     throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
+//   }
+//   if (!COGNITO_CLIENT_ID) {
+//     throw new Error('COGNITO_CLIENT_ID environment variable is required');
+//   }
+//   if (!COGNITO_CLIENT_SECRET) {
+//     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
+//   }
 
-  console.log('Authenticating with Cognito using Teams token as external IdP');
+//   console.log('Authenticating with Cognito using Teams token as external IdP');
 
-  // Use Cognito's InitiateAuth with external provider
-  const authData = new URLSearchParams({
-    grant_type: 'authorization_code',
-    client_id: COGNITO_CLIENT_ID_VALIDATED,
-    client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
-    // For external IdP, we need to use the external provider token
-    external_provider_token: teamsToken,
-    external_provider: 'AzureAD', // or whatever you configured in Cognito
-  });
+//   // Use Cognito's InitiateAuth with external provider
+//   const authData = new URLSearchParams({
+//     grant_type: 'authorization_code',
+//     client_id: COGNITO_CLIENT_ID_VALIDATED,
+//     client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
+//     // For external IdP, we need to use the external provider token
+//     external_provider_token: teamsToken,
+//     external_provider: 'AzureAD', // or whatever you configured in Cognito
+//   });
 
-  const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
-    body: authData.toString(),
-  });
+//   const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
+//     method: 'POST',
+//     headers: {
+//       'Content-Type': 'application/x-www-form-urlencoded',
+//     },
+//     body: authData.toString(),
+//   });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Cognito authentication failed:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorText: errorText
-    });
-    throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
-  }
+//   if (!response.ok) {
+//     const errorText = await response.text();
+//     console.error('Cognito authentication failed:', {
+//       status: response.status,
+//       statusText: response.statusText,
+//       errorText: errorText
+//     });
+//     throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
+//   }
 
-  return await response.json() as CognitoTokens;
-}
+//   return await response.json() as CognitoTokens;
+// }
 
+// TODO: Use when implementing Cognito federation
 // Set secure session cookie
-function setSessionCookie(response: NextResponse, tokens: CognitoTokens) {
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 3600, // 1 hour
-    path: '/',
-  };
+// function setSessionCookie(response: NextResponse, tokens: CognitoTokens) {
+//   const cookieOptions = {
+//     httpOnly: true,
+//     secure: process.env.NODE_ENV === 'production',
+//     sameSite: 'lax' as const,
+//     maxAge: 3600, // 1 hour
+//     path: '/',
+//   };
 
-  // Set access token cookie
-  response.cookies.set('access_token', tokens.access_token, cookieOptions);
+//   // Set access token cookie
+//   response.cookies.set('access_token', tokens.access_token, cookieOptions);
   
-  // Set refresh token cookie (longer expiry)
-  response.cookies.set('refresh_token', tokens.refresh_token, {
-    ...cookieOptions,
-    maxAge: 30 * 24 * 3600, // 30 days
-  });
+//   // Set refresh token cookie (longer expiry)
+//   response.cookies.set('refresh_token', tokens.refresh_token, {
+//     ...cookieOptions,
+//     maxAge: 30 * 24 * 3600, // 30 days
+//   });
 
-  // Set ID token cookie
-  response.cookies.set('id_token', tokens.id_token, cookieOptions);
-}
+//   // Set ID token cookie
+//   response.cookies.set('id_token', tokens.id_token, cookieOptions);
+// }
 
 export async function POST(request: NextRequest): Promise<NextResponse<TokenExchangeResponse>> {
   try {
