@@ -14,14 +14,13 @@ interface JwtPayload {
   iat: number;
 }
 
-// TODO: Use when implementing Cognito federation
-// interface CognitoTokens {
-//   access_token: string;
-//   refresh_token: string;
-//   id_token: string;
-//   token_type: string;
-//   expires_in: number;
-// }
+interface CognitoTokens {
+  access_token: string;
+  refresh_token: string;
+  id_token: string;
+  token_type: string;
+  expires_in: number;
+}
 
 interface TokenExchangeResponse {
   success: boolean;
@@ -40,6 +39,9 @@ interface TokenExchangeResponse {
 const MICROSOFT_JWKS_URI = 'https://login.microsoftonline.com/common/discovery/v2.0/keys';
 const MICROSOFT_ISSUER = process.env.MICROSOFT_ISSUER;
 
+// Feature flag for authentication mode
+const USE_COGNITO_FEDERATION = process.env.USE_COGNITO_FEDERATION === 'true';
+
 // AWS Cognito configuration
 const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
@@ -51,6 +53,7 @@ const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 
 // Debug: Log environment variable loading
 console.log('Environment variables loaded:', {
+  USE_COGNITO_FEDERATION: USE_COGNITO_FEDERATION ? 'ENABLED' : 'DISABLED',
   COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
   MICROSOFT_ISSUER: MICROSOFT_ISSUER || 'NOT SET',
   AZURE_CLIENT_SECRET: AZURE_CLIENT_SECRET ? `SET (${AZURE_CLIENT_SECRET.length} chars)` : 'NOT SET'
@@ -64,10 +67,9 @@ console.log('Validated variables debug:', {
   MICROSOFT_ISSUER_VALIDATED_type: typeof MICROSOFT_ISSUER_VALIDATED
 });
 
-// TODO: Use when implementing Cognito federation
-// const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
-// const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
-// const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
+const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
+const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 
 const APP_URL_VALIDATED = APP_URL as string;
 const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
@@ -146,76 +148,74 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   });
 }
 
-// TODO: Implement Cognito federation when ready
 // Authenticate with Cognito using Teams token as external IdP
-// async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
-//   // Validate required environment variables
-//   if (!COGNITO_TOKEN_ENDPOINT) {
-//     throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
-//   }
-//   if (!COGNITO_CLIENT_ID) {
-//     throw new Error('COGNITO_CLIENT_ID environment variable is required');
-//   }
-//   if (!COGNITO_CLIENT_SECRET) {
-//     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
-//   }
+async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
+  // Validate required environment variables
+  if (!COGNITO_TOKEN_ENDPOINT) {
+    throw new Error('COGNITO_TOKEN_ENDPOINT environment variable is required');
+  }
+  if (!COGNITO_CLIENT_ID) {
+    throw new Error('COGNITO_CLIENT_ID environment variable is required');
+  }
+  if (!COGNITO_CLIENT_SECRET) {
+    throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
+  }
 
-//   console.log('Authenticating with Cognito using Teams token as external IdP');
+  console.log('Authenticating with Cognito using Teams token as external IdP');
 
-//   // Use Cognito's InitiateAuth with external provider
-//   const authData = new URLSearchParams({
-//     grant_type: 'authorization_code',
-//     client_id: COGNITO_CLIENT_ID_VALIDATED,
-//     client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
-//     // For external IdP, we need to use the external provider token
-//     external_provider_token: teamsToken,
-//     external_provider: 'AzureAD', // or whatever you configured in Cognito
-//   });
+  // Use Cognito's InitiateAuth with external provider
+  const authData = new URLSearchParams({
+    grant_type: 'authorization_code',
+    client_id: COGNITO_CLIENT_ID_VALIDATED,
+    client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
+    // For external IdP, we need to use the external provider token
+    external_provider_token: teamsToken,
+    external_provider: 'AzureAD', // or whatever you configured in Cognito
+  });
 
-//   const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
-//     method: 'POST',
-//     headers: {
-//       'Content-Type': 'application/x-www-form-urlencoded',
-//     },
-//     body: authData.toString(),
-//   });
+  const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: authData.toString(),
+  });
 
-//   if (!response.ok) {
-//     const errorText = await response.text();
-//     console.error('Cognito authentication failed:', {
-//       status: response.status,
-//       statusText: response.statusText,
-//       errorText: errorText
-//     });
-//     throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
-//   }
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Cognito authentication failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText: errorText
+    });
+    throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
+  }
 
-//   return await response.json() as CognitoTokens;
-// }
+  return await response.json() as CognitoTokens;
+}
 
-// TODO: Use when implementing Cognito federation
 // Set secure session cookie
-// function setSessionCookie(response: NextResponse, tokens: CognitoTokens) {
-//   const cookieOptions = {
-//     httpOnly: true,
-//     secure: process.env.NODE_ENV === 'production',
-//     sameSite: 'lax' as const,
-//     maxAge: 3600, // 1 hour
-//     path: '/',
-//   };
+function setSessionCookie(response: NextResponse, tokens: CognitoTokens) {
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 3600, // 1 hour
+    path: '/',
+  };
 
-//   // Set access token cookie
-//   response.cookies.set('access_token', tokens.access_token, cookieOptions);
+  // Set access token cookie
+  response.cookies.set('access_token', tokens.access_token, cookieOptions);
   
-//   // Set refresh token cookie (longer expiry)
-//   response.cookies.set('refresh_token', tokens.refresh_token, {
-//     ...cookieOptions,
-//     maxAge: 30 * 24 * 3600, // 30 days
-//   });
+  // Set refresh token cookie (longer expiry)
+  response.cookies.set('refresh_token', tokens.refresh_token, {
+    ...cookieOptions,
+    maxAge: 30 * 24 * 3600, // 30 days
+  });
 
-//   // Set ID token cookie
-//   response.cookies.set('id_token', tokens.id_token, cookieOptions);
-// }
+  // Set ID token cookie
+  response.cookies.set('id_token', tokens.id_token, cookieOptions);
+}
 
 export async function POST(request: NextRequest): Promise<NextResponse<TokenExchangeResponse>> {
   try {
@@ -234,23 +234,48 @@ export async function POST(request: NextRequest): Promise<NextResponse<TokenExch
     const verifiedToken = await verifyTeamsToken(token);
     console.log('Teams token verified successfully');
 
-    // Skip Cognito token exchange for now - just use Teams token
-    console.log('Skipping Cognito token exchange - using Teams token directly');
+    let response: NextResponse<TokenExchangeResponse>;
 
-    // Create response with Teams user data
-    const response = NextResponse.json({
-      success: true,
-      message: 'Teams authentication successful',
-      user: {
-        sub: verifiedToken.sub,
-        name: verifiedToken.name,
-        email: verifiedToken.email,
-        upn: verifiedToken.upn,
-      },
-      timestamp: new Date().toISOString()
-    } as TokenExchangeResponse);
+    if (USE_COGNITO_FEDERATION) {
+      // Use Cognito federation
+      console.log('Using Cognito federation - exchanging Teams token for Cognito tokens');
+      const cognitoTokens = await authenticateWithCognito(token, verifiedToken.email || '');
+      console.log('Cognito token exchange completed successfully');
 
-    // Note: Not setting Cognito session cookies since we're not exchanging tokens
+      // Create response with Teams user data
+      response = NextResponse.json({
+        success: true,
+        message: 'Teams-Cognito federation successful',
+        user: {
+          sub: verifiedToken.sub,
+          name: verifiedToken.name,
+          email: verifiedToken.email,
+          upn: verifiedToken.upn,
+        },
+        timestamp: new Date().toISOString()
+      } as TokenExchangeResponse);
+
+      // Set Cognito session cookies
+      setSessionCookie(response, cognitoTokens);
+    } else {
+      // Use Teams-only authentication
+      console.log('Using Teams-only authentication - skipping Cognito token exchange');
+
+      // Create response with Teams user data
+      response = NextResponse.json({
+        success: true,
+        message: 'Teams authentication successful',
+        user: {
+          sub: verifiedToken.sub,
+          name: verifiedToken.name,
+          email: verifiedToken.email,
+          upn: verifiedToken.upn,
+        },
+        timestamp: new Date().toISOString()
+      } as TokenExchangeResponse);
+
+      // Note: Not setting Cognito session cookies since we're not exchanging tokens
+    }
 
     return response;
 
@@ -419,23 +444,48 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Verify the access token
     const verifiedToken = await verifyTeamsToken(accessToken);
 
-    // Skip Cognito token exchange - just use Teams token
-    console.log('Skipping Cognito token exchange in GET endpoint');
+    let response: NextResponse;
 
-    // Create response with user data
-    const userData = {
-      success: true,
-      user: {
-        sub: verifiedToken.sub,
-        name: verifiedToken.name,
-        email: verifiedToken.email,
-        upn: verifiedToken.upn,
-      },
-      timestamp: new Date().toISOString()
-    };
+    if (USE_COGNITO_FEDERATION) {
+      // Use Cognito federation
+      console.log('Using Cognito federation in GET endpoint - exchanging Teams token for Cognito tokens');
+      const cognitoTokens = await authenticateWithCognito(accessToken, verifiedToken.email || '');
+      console.log('Cognito token exchange completed successfully in GET endpoint');
 
-    // Create response without Cognito session cookies
-    const response = NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`);
+      // Create response with user data
+      const userData = {
+        success: true,
+        user: {
+          sub: verifiedToken.sub,
+          name: verifiedToken.name,
+          email: verifiedToken.email,
+          upn: verifiedToken.upn,
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Create response with Cognito session cookies
+      response = NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`);
+      setSessionCookie(response, cognitoTokens);
+    } else {
+      // Use Teams-only authentication
+      console.log('Using Teams-only authentication in GET endpoint - skipping Cognito token exchange');
+
+      // Create response with user data
+      const userData = {
+        success: true,
+        user: {
+          sub: verifiedToken.sub,
+          name: verifiedToken.name,
+          email: verifiedToken.email,
+          upn: verifiedToken.upn,
+        },
+        timestamp: new Date().toISOString()
+      };
+
+      // Create response without Cognito session cookies
+      response = NextResponse.redirect(`${APP_URL_VALIDATED}/auth-end?success=true&data=${encodeURIComponent(JSON.stringify(userData))}`);
+    }
 
     return response;
 
