@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
+import crypto from 'crypto';
 
 // Type definitions
 interface JwtPayload {
@@ -44,7 +45,7 @@ const USE_COGNITO_FEDERATION = process.env.USE_COGNITO_FEDERATION === 'true';
 
 // AWS Cognito configuration
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
-// const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
+const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
 const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
 const COGNITO_REGION = process.env.COGNITO_REGION;
 const COGNITO_EXTERNAL_PROVIDER = process.env.COGNITO_EXTERNAL_PROVIDER;
@@ -56,7 +57,7 @@ const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 // Debug: Log environment variable loading
 console.log('Environment variables loaded:', {
   USE_COGNITO_FEDERATION: USE_COGNITO_FEDERATION ? 'ENABLED' : 'DISABLED',
-  // COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
+  COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
   COGNITO_USER_POOL_ID: COGNITO_USER_POOL_ID || 'NOT SET',
   COGNITO_REGION: COGNITO_REGION || 'NOT SET',
   MICROSOFT_ISSUER: MICROSOFT_ISSUER || 'NOT SET',
@@ -72,7 +73,7 @@ console.log('Validated variables debug:', {
 });
 
 const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
-// COGNITO_CLIENT_SECRET_VALIDATED not used with current auth flow
+const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
 const COGNITO_EXTERNAL_PROVIDER_VALIDATED = COGNITO_EXTERNAL_PROVIDER as string;
 const COGNITO_USER_POOL_ID_VALIDATED = COGNITO_USER_POOL_ID as string;
 const COGNITO_REGION_VALIDATED = COGNITO_REGION as string;
@@ -160,8 +161,9 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
   if (!COGNITO_CLIENT_ID) {
     throw new Error('COGNITO_CLIENT_ID environment variable is required');
   }
-  // Note: COGNITO_CLIENT_SECRET is not used with ADMIN_USER_PASSWORD_AUTH flow
-  // but we keep it for potential future use with other auth flows
+  if (!COGNITO_CLIENT_SECRET) {
+    throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
+  }
   if (!COGNITO_USER_POOL_ID) {
     throw new Error('COGNITO_USER_POOL_ID environment variable is required');
   }
@@ -181,6 +183,13 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
   // Use Cognito's Identity Provider API
   const cognitoIdpEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
 
+  // Calculate SECRET_HASH for client with secret
+  const message = userEmail + COGNITO_CLIENT_ID_VALIDATED;
+  const secretHash = crypto
+    .createHmac('SHA256', COGNITO_CLIENT_SECRET_VALIDATED)
+    .update(message)
+    .digest('base64');
+
   const authData = {
     AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
     ClientId: COGNITO_CLIENT_ID_VALIDATED,
@@ -188,6 +197,7 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     AuthParameters: {
       USERNAME: userEmail || 'teams-user',
       PASSWORD: teamsToken, // Using Teams token as password for external auth
+      SECRET_HASH: secretHash,
       'custom:external_provider': COGNITO_EXTERNAL_PROVIDER_VALIDATED,
       'custom:external_token': teamsToken
     }
@@ -364,7 +374,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       console.log('COGNITO_REGION:', COGNITO_REGION ? 'SET' : 'NOT SET');
       console.log('COGNITO_EXTERNAL_PROVIDER:', COGNITO_EXTERNAL_PROVIDER_VALIDATED);
       console.log('COGNITO_CLIENT_ID:', COGNITO_CLIENT_ID ? 'SET' : 'NOT SET');
-      // console.log('COGNITO_CLIENT_SECRET:', COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET');
+      console.log('COGNITO_CLIENT_SECRET:', COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET');
       console.log('APP_URL:', APP_URL ? 'SET' : 'NOT SET');
       console.log('AZURE_APP_RESOURCE:', AZURE_APP_RESOURCE ? 'SET' : 'NOT SET');
       console.log('AZURE_CLIENT_ID:', AZURE_CLIENT_ID ? 'SET' : 'NOT SET');
@@ -375,7 +385,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (!MICROSOFT_ISSUER) missingVars.push('MICROSOFT_ISSUER');
       if (!COGNITO_REGION) missingVars.push('COGNITO_REGION');
       if (!COGNITO_CLIENT_ID) missingVars.push('COGNITO_CLIENT_ID');
-      // if (!COGNITO_CLIENT_SECRET) missingVars.push('COGNITO_CLIENT_SECRET');
+      if (!COGNITO_CLIENT_SECRET) missingVars.push('COGNITO_CLIENT_SECRET');
       if (!APP_URL) missingVars.push('NEXT_PUBLIC_APP_URL');
       if (!AZURE_APP_RESOURCE) missingVars.push('NEXT_PUBLIC_AZURE_APP_RESOURCE');
       if (!AZURE_CLIENT_ID) missingVars.push('NEXT_PUBLIC_AZURE_CLIENT_ID');
@@ -389,7 +399,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
             microsoftIssuer: MICROSOFT_ISSUER ? 'SET' : 'NOT SET',
             cognitoRegion: COGNITO_REGION ? 'SET' : 'NOT SET',
             cognitoClientId: COGNITO_CLIENT_ID ? 'SET' : 'NOT SET',
-            // cognitoClientSecret: COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET',
+            cognitoClientSecret: COGNITO_CLIENT_SECRET ? 'SET' : 'NOT SET',
             appUrl: APP_URL ? 'SET' : 'NOT SET',
             azureAppResource: AZURE_APP_RESOURCE ? 'SET' : 'NOT SET',
             azureClientId: AZURE_CLIENT_ID ? 'SET' : 'NOT SET',

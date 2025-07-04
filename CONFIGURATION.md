@@ -14,7 +14,7 @@ MICROSOFT_ISSUER=https://login.microsoftonline.com/{tenant-id}/v2.0
 COGNITO_REGION=us-east-1
 COGNITO_EXTERNAL_PROVIDER=MicrosoftEntraID
 COGNITO_CLIENT_ID=your-cognito-client-id
-# COGNITO_CLIENT_SECRET=your-cognito-client-secret
+COGNITO_CLIENT_SECRET=your-cognito-client-secret
 
 # Teams App Configuration
 # This should match your Teams app ID (same as Cognito client ID)
