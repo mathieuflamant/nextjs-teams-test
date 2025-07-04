@@ -161,7 +161,9 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
   }
 
-  console.log('Authenticating with Cognito using Teams token as external IdP');
+  console.log('Authenticating with Cognito using Teams token as external IdP', {
+    userEmail: userEmail || 'not provided'
+  });
 
   // Use Cognito's InitiateAuth with external provider
   const authData = new URLSearchParams({
