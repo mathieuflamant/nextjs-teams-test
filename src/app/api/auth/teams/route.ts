@@ -46,6 +46,8 @@ const USE_COGNITO_FEDERATION = process.env.USE_COGNITO_FEDERATION === 'true';
 const COGNITO_TOKEN_ENDPOINT = process.env.COGNITO_TOKEN_ENDPOINT;
 const COGNITO_CLIENT_ID = process.env.COGNITO_CLIENT_ID;
 const COGNITO_CLIENT_SECRET = process.env.COGNITO_CLIENT_SECRET;
+const COGNITO_USER_POOL_ID = process.env.COGNITO_USER_POOL_ID;
+const COGNITO_REGION = process.env.COGNITO_REGION;
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL;
 const AZURE_APP_RESOURCE = process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE;
 const AZURE_CLIENT_ID = process.env.NEXT_PUBLIC_AZURE_CLIENT_ID;
@@ -55,6 +57,8 @@ const AZURE_CLIENT_SECRET = process.env.AZURE_CLIENT_SECRET;
 console.log('Environment variables loaded:', {
   USE_COGNITO_FEDERATION: USE_COGNITO_FEDERATION ? 'ENABLED' : 'DISABLED',
   COGNITO_CLIENT_SECRET: COGNITO_CLIENT_SECRET ? `SET (${COGNITO_CLIENT_SECRET.length} chars)` : 'NOT SET',
+  COGNITO_USER_POOL_ID: COGNITO_USER_POOL_ID || 'NOT SET',
+  COGNITO_REGION: COGNITO_REGION || 'NOT SET',
   MICROSOFT_ISSUER: MICROSOFT_ISSUER || 'NOT SET',
   AZURE_CLIENT_SECRET: AZURE_CLIENT_SECRET ? `SET (${AZURE_CLIENT_SECRET.length} chars)` : 'NOT SET'
 });
@@ -67,10 +71,11 @@ console.log('Validated variables debug:', {
   MICROSOFT_ISSUER_VALIDATED_type: typeof MICROSOFT_ISSUER_VALIDATED
 });
 
-// TODO: Use when implementing real Cognito federation
-// const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
-// const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
-// const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+const COGNITO_TOKEN_ENDPOINT_VALIDATED = COGNITO_TOKEN_ENDPOINT as string;
+const COGNITO_CLIENT_ID_VALIDATED = COGNITO_CLIENT_ID as string;
+const COGNITO_CLIENT_SECRET_VALIDATED = COGNITO_CLIENT_SECRET as string;
+const COGNITO_USER_POOL_ID_VALIDATED = COGNITO_USER_POOL_ID as string;
+const COGNITO_REGION_VALIDATED = COGNITO_REGION as string;
 
 const APP_URL_VALIDATED = APP_URL as string;
 const AZURE_CLIENT_ID_VALIDATED = AZURE_CLIENT_ID as string;
@@ -162,60 +167,87 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     throw new Error('COGNITO_CLIENT_SECRET environment variable is required');
   }
 
-  console.log('Authenticating with Cognito using Teams token as external IdP', {
+    console.log('Authenticating with Cognito using Teams token as external IdP', {
     userEmail: userEmail || 'not provided'
   });
 
-  // TODO: Implement proper Cognito federation
-  // For now, let's create a mock Cognito response since the federation setup is complex
-  // In a real implementation, you would need to:
-  // 1. Configure Cognito User Pool with Azure AD as external IdP
-  // 2. Use Cognito's InitiateAuth API with the external provider token
-  // 3. Handle the proper federation flow
+  // Validate required environment variables
+  if (!COGNITO_USER_POOL_ID) {
+    throw new Error('COGNITO_USER_POOL_ID environment variable is required');
+  }
+  if (!COGNITO_REGION) {
+    throw new Error('COGNITO_REGION environment variable is required');
+  }
 
-  console.log('Note: Using mock Cognito tokens for now. Proper federation requires Cognito User Pool configuration.');
+  console.log('Using real Cognito federation with User Pool:', COGNITO_USER_POOL_ID_VALIDATED);
 
-  // Mock Cognito tokens for testing
-  const mockCognitoTokens: CognitoTokens = {
-    access_token: `mock_cognito_access_${Date.now()}`,
-    refresh_token: `mock_cognito_refresh_${Date.now()}`,
-    id_token: `mock_cognito_id_${Date.now()}`,
-    token_type: 'Bearer',
-    expires_in: 3600
+  // Use Cognito's InitiateAuth API for external provider authentication
+  const cognitoEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
+
+  const authData = {
+    AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
+    ClientId: COGNITO_CLIENT_ID_VALIDATED,
+    UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
+    AuthParameters: {
+      USERNAME: userEmail || 'teams-user',
+      PASSWORD: teamsToken, // Using Teams token as password for external auth
+      'custom:external_provider': 'AzureAD',
+      'custom:external_token': teamsToken
+    }
   };
 
-  // TODO: Replace with real Cognito federation implementation
-  // Original implementation (commented out due to invalid request format):
-  // const authData = new URLSearchParams({
-  //   grant_type: 'authorization_code',
-  //   client_id: COGNITO_CLIENT_ID_VALIDATED,
-  //   client_secret: COGNITO_CLIENT_SECRET_VALIDATED,
-  //   // For external IdP, we need to use the external provider token
-  //   external_provider_token: teamsToken,
-  //   external_provider: 'AzureAD', // or whatever you configured in Cognito
-  // });
-  //
-  // const response = await fetch(COGNITO_TOKEN_ENDPOINT_VALIDATED, {
-  //   method: 'POST',
-  //   headers: {
-  //     'Content-Type': 'application/x-www-form-urlencoded',
-  //   },
-  //   body: authData.toString(),
-  // });
-  //
-  // if (!response.ok) {
-  //   const errorText = await response.text();
-  //   console.error('Cognito authentication failed:', {
-  //     status: response.status,
-  //     statusText: response.statusText,
-  //     errorText: errorText
-  //   });
-  //   throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
-  // }
-  //
-  // return await response.json() as CognitoTokens;
+  console.log('Calling Cognito InitiateAuth API:', {
+    endpoint: cognitoEndpoint,
+    userPoolId: COGNITO_USER_POOL_ID_VALIDATED,
+    clientId: COGNITO_CLIENT_ID_VALIDATED,
+    authFlow: 'ADMIN_USER_PASSWORD_AUTH'
+  });
 
-  return mockCognitoTokens;
+  const response = await fetch(cognitoEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-amz-json-1.1',
+      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth'
+    },
+    body: JSON.stringify(authData)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Cognito InitiateAuth failed:', {
+      status: response.status,
+      statusText: response.statusText,
+      errorText: errorText
+    });
+    throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
+  }
+
+  const cognitoResponse = await response.json();
+  console.log('Cognito InitiateAuth response:', {
+    hasAuthenticationResult: !!cognitoResponse.AuthenticationResult,
+    hasChallenge: !!cognitoResponse.ChallengeName
+  });
+
+  // Handle different response types
+  if (cognitoResponse.AuthenticationResult) {
+    // Successful authentication
+    const tokens: CognitoTokens = {
+      access_token: cognitoResponse.AuthenticationResult.AccessToken,
+      refresh_token: cognitoResponse.AuthenticationResult.RefreshToken,
+      id_token: cognitoResponse.AuthenticationResult.IdToken,
+      token_type: cognitoResponse.AuthenticationResult.TokenType || 'Bearer',
+      expires_in: cognitoResponse.AuthenticationResult.ExpiresIn || 3600
+    };
+    return tokens;
+  } else if (cognitoResponse.ChallengeName) {
+    // Handle challenges (like NEW_PASSWORD_REQUIRED, MFA, etc.)
+    console.log('Cognito challenge received:', cognitoResponse.ChallengeName);
+    throw new Error(`Cognito challenge not implemented: ${cognitoResponse.ChallengeName}`);
+  } else {
+    // Unexpected response
+    console.error('Unexpected Cognito response:', cognitoResponse);
+    throw new Error('Unexpected Cognito authentication response');
+  }
 }
 
 // Set secure session cookie
