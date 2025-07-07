@@ -155,6 +155,69 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
   });
 }
 
+// Create user in Cognito if they don't exist
+async function createUserIfNotExists(userEmail: string, teamsToken: string): Promise<void> {
+  const username = userEmail || 'teams-user';
+  
+  // Calculate SECRET_HASH for client with secret
+  const message = username + COGNITO_CLIENT_ID_VALIDATED;
+  const secretHash = crypto
+    .createHmac('SHA256', COGNITO_CLIENT_SECRET_VALIDATED)
+    .update(message, 'utf8')
+    .digest('base64');
+
+  const createUserData = {
+    UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
+    Username: username,
+    UserAttributes: [
+      {
+        Name: 'email',
+        Value: userEmail || 'teams-user@example.com'
+      },
+      {
+        Name: 'email_verified',
+        Value: 'true'
+      },
+      {
+        Name: 'custom:external_provider',
+        Value: COGNITO_EXTERNAL_PROVIDER_VALIDATED
+      },
+      {
+        Name: 'custom:external_token',
+        Value: teamsToken
+      }
+    ],
+    MessageAction: 'SUPPRESS' // Don't send welcome email
+  };
+
+  try {
+    const response = await fetch(`https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-amz-json-1.1',
+        'X-Amz-Target': 'AWSCognitoIdentityProviderService.AdminCreateUser'
+      },
+      body: JSON.stringify(createUserData)
+    });
+
+    if (response.ok) {
+      console.log('User created successfully in Cognito');
+    } else {
+      const errorText = await response.text();
+      // If user already exists, that's fine
+      if (errorText.includes('UsernameExistsException')) {
+        console.log('User already exists in Cognito');
+      } else {
+        console.error('Failed to create user:', errorText);
+        throw new Error(`Failed to create user: ${errorText}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error creating user:', error);
+    throw error;
+  }
+}
+
 // Authenticate with Cognito using Teams token as external IdP
 async function authenticateWithCognito(teamsToken: string, userEmail: string): Promise<CognitoTokens> {
   // Validate required environment variables
@@ -180,22 +243,35 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
 
   console.log('Using real Cognito federation with User Pool:', COGNITO_USER_POOL_ID_VALIDATED);
 
+  // First, ensure the user exists in Cognito
+  await createUserIfNotExists(userEmail, teamsToken);
+
   // Use Cognito's Identity Provider API
   const cognitoIdpEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
 
   // Calculate SECRET_HASH for client with secret
-  const message = userEmail + COGNITO_CLIENT_ID_VALIDATED;
+  // AWS Cognito expects: base64(hmac-sha256(client_secret, username + client_id))
+  const username = userEmail || 'teams-user';
+  const message = username + COGNITO_CLIENT_ID_VALIDATED;
   const secretHash = crypto
     .createHmac('SHA256', COGNITO_CLIENT_SECRET_VALIDATED)
-    .update(message)
+    .update(message, 'utf8')
     .digest('base64');
 
+  console.log('SECRET_HASH calculation:', {
+    username: username,
+    clientId: COGNITO_CLIENT_ID_VALIDATED,
+    message: message,
+    secretHashLength: secretHash.length,
+    secretHashPreview: secretHash.substring(0, 10) + '...'
+  });
+
   const authData = {
-    AuthFlow: 'ADMIN_USER_PASSWORD_AUTH',
+    AuthFlow: 'ADMIN_NO_SRP_AUTH',
     ClientId: COGNITO_CLIENT_ID_VALIDATED,
     UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
     AuthParameters: {
-      USERNAME: userEmail || 'teams-user',
+      USERNAME: username,
       PASSWORD: teamsToken, // Using Teams token as password for external auth
       SECRET_HASH: secretHash,
       'custom:external_provider': COGNITO_EXTERNAL_PROVIDER_VALIDATED,
@@ -208,7 +284,7 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     region: COGNITO_REGION_VALIDATED,
     userPoolId: COGNITO_USER_POOL_ID_VALIDATED,
     clientId: COGNITO_CLIENT_ID_VALIDATED,
-    authFlow: 'ADMIN_USER_PASSWORD_AUTH'
+    authFlow: 'ADMIN_NO_SRP_AUTH'
   });
 
   const response = await fetch(cognitoIdpEndpoint, {
