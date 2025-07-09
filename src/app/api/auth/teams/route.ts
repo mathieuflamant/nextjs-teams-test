@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import crypto from 'crypto';
+import { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminInitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider';
 
 // Type definitions
 interface JwtPayload {
@@ -159,7 +160,9 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
 async function createUserIfNotExists(userEmail: string, teamsToken: string): Promise<void> {
   const username = userEmail || 'teams-user';
 
-  const createUserData = {
+  const client = new CognitoIdentityProviderClient({ region: COGNITO_REGION_VALIDATED });
+
+  const createUserCommand = new AdminCreateUserCommand({
     UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
     Username: username,
     UserAttributes: [
@@ -181,33 +184,19 @@ async function createUserIfNotExists(userEmail: string, teamsToken: string): Pro
       }
     ],
     MessageAction: 'SUPPRESS' // Don't send welcome email
-  };
+  });
 
   try {
-    const response = await fetch(`https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-amz-json-1.1',
-        'X-Amz-Target': 'AWSCognitoIdentityProviderService.AdminCreateUser'
-      },
-      body: JSON.stringify(createUserData)
-    });
-
-    if (response.ok) {
-      console.log('User created successfully in Cognito');
+    await client.send(createUserCommand);
+    console.log('User created successfully in Cognito');
+  } catch (error: any) {
+    // If user already exists, that's fine
+    if (error.name === 'UsernameExistsException') {
+      console.log('User already exists in Cognito');
     } else {
-      const errorText = await response.text();
-      // If user already exists, that's fine
-      if (errorText.includes('UsernameExistsException')) {
-        console.log('User already exists in Cognito');
-      } else {
-        console.error('Failed to create user:', errorText);
-        throw new Error(`Failed to create user: ${errorText}`);
-      }
+      console.error('Failed to create user:', error);
+      throw new Error(`Failed to create user: ${error.message}`);
     }
-  } catch (error) {
-    console.error('Error creating user:', error);
-    throw error;
   }
 }
 
@@ -259,7 +248,9 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     secretHashPreview: secretHash.substring(0, 10) + '...'
   });
 
-  const authData = {
+  const client = new CognitoIdentityProviderClient({ region: COGNITO_REGION_VALIDATED });
+
+  const authCommand = new AdminInitiateAuthCommand({
     AuthFlow: 'ADMIN_NO_SRP_AUTH',
     ClientId: COGNITO_CLIENT_ID_VALIDATED,
     UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
@@ -270,60 +261,46 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
       'custom:external_provider': COGNITO_EXTERNAL_PROVIDER_VALIDATED,
       'custom:external_token': teamsToken
     }
-  };
+  });
 
   console.log('Calling Cognito Identity Provider API:', {
-    idpEndpoint: cognitoIdpEndpoint,
     region: COGNITO_REGION_VALIDATED,
     userPoolId: COGNITO_USER_POOL_ID_VALIDATED,
     clientId: COGNITO_CLIENT_ID_VALIDATED,
     authFlow: 'ADMIN_NO_SRP_AUTH'
   });
 
-  const response = await fetch(cognitoIdpEndpoint, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-amz-json-1.1',
-      'X-Amz-Target': 'AWSCognitoIdentityProviderService.InitiateAuth'
-    },
-    body: JSON.stringify(authData)
-  });
+  try {
+    const cognitoResponse = await client.send(authCommand);
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error('Cognito InitiateAuth failed:', {
-      status: response.status,
-      statusText: response.statusText,
-      errorText: errorText
+    console.log('Cognito InitiateAuth response:', {
+      hasAuthenticationResult: !!cognitoResponse.AuthenticationResult,
+      hasChallenge: !!cognitoResponse.ChallengeName
     });
-    throw new Error(`Cognito authentication failed: ${response.status} ${errorText}`);
-  }
 
-  const cognitoResponse = await response.json();
-  console.log('Cognito InitiateAuth response:', {
-    hasAuthenticationResult: !!cognitoResponse.AuthenticationResult,
-    hasChallenge: !!cognitoResponse.ChallengeName
-  });
-
-  // Handle different response types
-  if (cognitoResponse.AuthenticationResult) {
-    // Successful authentication
-    const tokens: CognitoTokens = {
-      access_token: cognitoResponse.AuthenticationResult.AccessToken,
-      refresh_token: cognitoResponse.AuthenticationResult.RefreshToken,
-      id_token: cognitoResponse.AuthenticationResult.IdToken,
-      token_type: cognitoResponse.AuthenticationResult.TokenType || 'Bearer',
-      expires_in: cognitoResponse.AuthenticationResult.ExpiresIn || 3600
-    };
-    return tokens;
-  } else if (cognitoResponse.ChallengeName) {
-    // Handle challenges (like NEW_PASSWORD_REQUIRED, MFA, etc.)
-    console.log('Cognito challenge received:', cognitoResponse.ChallengeName);
-    throw new Error(`Cognito challenge not implemented: ${cognitoResponse.ChallengeName}`);
-  } else {
-    // Unexpected response
-    console.error('Unexpected Cognito response:', cognitoResponse);
-    throw new Error('Unexpected Cognito authentication response');
+    // Handle different response types
+    if (cognitoResponse.AuthenticationResult) {
+      // Successful authentication
+      const tokens: CognitoTokens = {
+        access_token: cognitoResponse.AuthenticationResult.AccessToken!,
+        refresh_token: cognitoResponse.AuthenticationResult.RefreshToken!,
+        id_token: cognitoResponse.AuthenticationResult.IdToken!,
+        token_type: cognitoResponse.AuthenticationResult.TokenType || 'Bearer',
+        expires_in: cognitoResponse.AuthenticationResult.ExpiresIn || 3600
+      };
+      return tokens;
+    } else if (cognitoResponse.ChallengeName) {
+      // Handle challenges (like NEW_PASSWORD_REQUIRED, MFA, etc.)
+      console.log('Cognito challenge received:', cognitoResponse.ChallengeName);
+      throw new Error(`Cognito challenge not implemented: ${cognitoResponse.ChallengeName}`);
+    } else {
+      // Unexpected response
+      console.error('Unexpected Cognito response:', cognitoResponse);
+      throw new Error('Unexpected Cognito authentication response');
+    }
+  } catch (error: any) {
+    console.error('Cognito InitiateAuth failed:', error);
+    throw new Error(`Cognito authentication failed: ${error.message}`);
   }
 }
 
