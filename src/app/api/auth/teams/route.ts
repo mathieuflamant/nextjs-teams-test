@@ -189,13 +189,14 @@ async function createUserIfNotExists(userEmail: string, teamsToken: string): Pro
   try {
     await client.send(createUserCommand);
     console.log('User created successfully in Cognito');
-  } catch (error: any) {
+  } catch (error: unknown) {
     // If user already exists, that's fine
-    if (error.name === 'UsernameExistsException') {
+    if (error instanceof Error && error.name === 'UsernameExistsException') {
       console.log('User already exists in Cognito');
     } else {
       console.error('Failed to create user:', error);
-      throw new Error(`Failed to create user: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`Failed to create user: ${errorMessage}`);
     }
   }
 }
@@ -227,9 +228,6 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
 
   // First, ensure the user exists in Cognito
   await createUserIfNotExists(userEmail, teamsToken);
-
-  // Use Cognito's Identity Provider API
-  const cognitoIdpEndpoint = `https://cognito-idp.${COGNITO_REGION_VALIDATED}.amazonaws.com/`;
 
   // Calculate SECRET_HASH for client with secret
   // AWS Cognito expects: base64(hmac-sha256(client_secret, username + client_id))
@@ -298,9 +296,10 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
       console.error('Unexpected Cognito response:', cognitoResponse);
       throw new Error('Unexpected Cognito authentication response');
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Cognito InitiateAuth failed:', error);
-    throw new Error(`Cognito authentication failed: ${error.message}`);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    throw new Error(`Cognito authentication failed: ${errorMessage}`);
   }
 }
 
