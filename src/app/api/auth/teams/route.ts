@@ -158,13 +158,6 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
 // Create user in Cognito if they don't exist
 async function createUserIfNotExists(userEmail: string, teamsToken: string): Promise<void> {
   const username = userEmail || 'teams-user';
-  
-  // Calculate SECRET_HASH for client with secret
-  const message = username + COGNITO_CLIENT_ID_VALIDATED;
-  const secretHash = crypto
-    .createHmac('SHA256', COGNITO_CLIENT_SECRET_VALIDATED)
-    .update(message, 'utf8')
-    .digest('base64');
 
   const createUserData = {
     UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
