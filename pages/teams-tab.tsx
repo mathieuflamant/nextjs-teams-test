@@ -36,7 +36,7 @@ export default function TeamsTab() {
   const [tokenExchangeStatus, setTokenExchangeStatus] = useState<string>('idle');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [teamsTestResult, setTeamsTestResult] = useState<string>('');
-  const [teamsContextData, setTeamsContextData] = useState<any>(null);
+  const [teamsContextData, setTeamsContextData] = useState<unknown>(null);
 
   useEffect(() => {
     const initializeTeams = async () => {
@@ -139,7 +139,7 @@ export default function TeamsTab() {
 
       // Parse the result which should contain user data
       console.log("Interactive auth success:", result);
-      const userData = typeof result === 'string' ? JSON.parse(result) : result;
+      const userData = typeof result === 'string' ? JSON.parse(result) as { user: UserInfo } : result;
       setUserInfo(userData.user as UserInfo);
       setTokenExchangeStatus('success');
 
@@ -308,7 +308,7 @@ export default function TeamsTab() {
                 <div>
                   <strong>Teams Context Data:</strong>
                   <div className="bg-gray-100 p-2 rounded text-xs font-mono break-all max-h-40 overflow-y-auto">
-                    <pre>{JSON.stringify(teamsContextData, null, 2)}</pre>
+                    <pre>{teamsContextData ? JSON.stringify(teamsContextData as Record<string, unknown>, null, 2) : ''}</pre>
                   </div>
                 </div>
               )}
