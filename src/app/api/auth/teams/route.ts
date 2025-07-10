@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import jwksClient from 'jwks-rsa';
 import crypto from 'crypto';
 import { CognitoIdentityProviderClient, AdminCreateUserCommand, AdminInitiateAuthCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { fromNodeProviderChain } from '@aws-sdk/credential-providers';
 
 // Type definitions
 interface JwtPayload {
@@ -160,7 +161,10 @@ async function verifyTeamsToken(token: string): Promise<JwtPayload> {
 async function createUserIfNotExists(userEmail: string, teamsToken: string): Promise<void> {
   const username = userEmail || 'teams-user';
 
-  const client = new CognitoIdentityProviderClient({ region: COGNITO_REGION_VALIDATED });
+  const client = new CognitoIdentityProviderClient({
+    region: COGNITO_REGION_VALIDATED,
+    credentials: fromNodeProviderChain()
+  });
 
   const createUserCommand = new AdminCreateUserCommand({
     UserPoolId: COGNITO_USER_POOL_ID_VALIDATED,
@@ -246,7 +250,10 @@ async function authenticateWithCognito(teamsToken: string, userEmail: string): P
     secretHashPreview: secretHash.substring(0, 10) + '...'
   });
 
-  const client = new CognitoIdentityProviderClient({ region: COGNITO_REGION_VALIDATED });
+  const client = new CognitoIdentityProviderClient({
+    region: COGNITO_REGION_VALIDATED,
+    credentials: fromNodeProviderChain()
+  });
 
   const authCommand = new AdminInitiateAuthCommand({
     AuthFlow: 'ADMIN_NO_SRP_AUTH',
