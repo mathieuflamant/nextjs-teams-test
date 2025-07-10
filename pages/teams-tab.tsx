@@ -9,6 +9,31 @@ interface UserInfo {
   upn: string;
 }
 
+interface TeamsContext {
+  user?: {
+    id?: string;
+    displayName?: string;
+    userPrincipalName?: string;
+    email?: string;
+  };
+  team?: {
+    id?: string;
+    displayName?: string;
+    internalId?: string;
+  };
+  channel?: {
+    id?: string;
+    displayName?: string;
+  };
+  app?: {
+    id?: string;
+    sessionId?: string;
+  };
+  locale?: string;
+  theme?: string;
+  [key: string]: unknown;
+}
+
 export default function TeamsTab() {
   // Add custom font styling
   useEffect(() => {
@@ -78,7 +103,7 @@ export default function TeamsTab() {
   const [apiResultsCard, setApiResultsCard] = useState<HTMLElement | null>(null);
 
   // Helper function to create Teams Context Adaptive Card
-  const createTeamsContextCard = (contextData: any) => {
+  const createTeamsContextCard = (contextData: TeamsContext) => {
     const card = new AdaptiveCards.AdaptiveCard();
 
     // Add header
@@ -269,12 +294,6 @@ export default function TeamsTab() {
       card.addItem(errorBlock);
     }
 
-    // Add retry button
-    const retryAction = new AdaptiveCards.ActionSubmit();
-    retryAction.title = "Retry Test";
-    retryAction.data = "retry-api-test";
-    card.addAction(retryAction);
-
     return card.render();
   };
 
@@ -405,8 +424,8 @@ export default function TeamsTab() {
       setTeamsTestResult('Teams SDK test completed successfully!');
       
       // Create and store the Adaptive Card
-      const contextCard = createTeamsContextCard(currentContext);
-      setTeamsContextCard(contextCard);
+      const contextCard = createTeamsContextCard(currentContext as unknown as TeamsContext);
+      setTeamsContextCard(contextCard || null);
 
     } catch (error) {
       console.error("Teams function test error:", error);
@@ -434,7 +453,7 @@ export default function TeamsTab() {
 
             // Create and store the Adaptive Card
             const resultsCard = createApiResultsCard('success', data.user as UserInfo, null);
-            setApiResultsCard(resultsCard);
+            setApiResultsCard(resultsCard || null);
           } else {
             setTokenExchangeStatus('error');
             // Display debug information in the error message
@@ -444,7 +463,7 @@ export default function TeamsTab() {
 
             // Create and store the Adaptive Card with error
             const resultsCard = createApiResultsCard('error', null, errorMessage);
-            setApiResultsCard(resultsCard);
+            setApiResultsCard(resultsCard || null);
           }
         } else {
           const text = await response.text();
@@ -454,7 +473,7 @@ export default function TeamsTab() {
 
           // Create and store the Adaptive Card with error
           const resultsCard = createApiResultsCard('error', null, `API Test Failed: ${errorDetails}`);
-          setApiResultsCard(resultsCard);
+          setApiResultsCard(resultsCard || null);
         }
       } else {
         const text = await response.text();
@@ -464,7 +483,7 @@ export default function TeamsTab() {
 
         // Create and store the Adaptive Card with error
         const resultsCard = createApiResultsCard('error', null, `API Test Failed: ${errorDetails}`);
-        setApiResultsCard(resultsCard);
+        setApiResultsCard(resultsCard || null);
       }
 
     } catch (error) {
@@ -474,7 +493,7 @@ export default function TeamsTab() {
 
       // Create and store the Adaptive Card with error
       const resultsCard = createApiResultsCard('error', null, errorMessage);
-      setApiResultsCard(resultsCard);
+      setApiResultsCard(resultsCard || null);
     }
   };
 
