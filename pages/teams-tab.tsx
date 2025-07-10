@@ -411,6 +411,7 @@ export default function TeamsTab() {
   const startTeamsAuthentication = async () => {
     try {
       setTokenExchangeStatus('exchanging');
+      setError(null); // Clear any previous errors
 
       // Construct the auth-start URL with OAuth2 parameters
       const authStartUrl = `${process.env.NEXT_PUBLIC_APP_URL}/auth-start?` +
@@ -434,8 +435,28 @@ export default function TeamsTab() {
 
     } catch (error) {
       console.error('Teams authentication error:', error);
-      setTokenExchangeStatus('error');
-      setError(error instanceof Error ? error.message : 'Interactive authentication failed');
+      const errorMessage = error instanceof Error ? error.message : 'Interactive authentication failed';
+
+      // Check if this is a user cancellation vs actual error
+      if (errorMessage.includes('CancelledByUser') || errorMessage.includes('cancelled')) {
+        // This might actually be a successful auth that was misinterpreted
+        // Let's check if we have any user data or tokens that indicate success
+        if (userInfo) {
+          // We have user data, so auth actually succeeded
+          setTokenExchangeStatus('success');
+          setError(null);
+          console.log('Authentication appears to have succeeded despite cancellation message');
+        } else {
+          // No user data, so it was actually cancelled
+          setTokenExchangeStatus('idle');
+          setError(null); // Don't show error for user cancellation
+          console.log('Authentication was cancelled by user');
+        }
+      } else {
+        // This is a real error, not a cancellation
+        setTokenExchangeStatus('error');
+        setError(`Authentication failed: ${errorMessage}`);
+      }
     }
   };
 
@@ -527,13 +548,64 @@ export default function TeamsTab() {
     }
   };
 
+  // Helper function to check if authentication was successful
+  const checkAuthenticationStatus = () => {
+    if (userInfo) {
+      return 'success';
+    } else if (authToken) {
+      return 'token_available';
+    } else if (tokenExchangeStatus === 'exchanging') {
+      return 'in_progress';
+    } else {
+      return 'not_authenticated';
+    }
+  };
+
+  // Helper function to get user-friendly status message
+  const getStatusMessage = () => {
+    const status = checkAuthenticationStatus();
+    switch (status) {
+      case 'success':
+        return 'Authentication successful! User information is available.';
+      case 'token_available':
+        return 'Teams token available. Ready to exchange for Cognito.';
+      case 'in_progress':
+        return 'Authentication in progress... Please complete the process.';
+      case 'not_authenticated':
+        return 'Not authenticated. Click "Start Teams Authentication" to begin.';
+      default:
+        return 'Authentication status unknown.';
+    }
+  };
+
   if (error) {
     return (
       <div className="p-6 max-w-md mx-auto bg-white rounded-xl shadow-lg">
-        <div className="text-red-600 font-semibold mb-2">Error</div>
-        <div className="text-gray-700">{error}</div>
-        <div className="text-sm text-gray-500 mt-2">
-          This is expected when running outside of Teams environment
+        <div className="text-red-600 font-semibold mb-2">Authentication Status</div>
+        <div className="text-gray-700 mb-4">{error}</div>
+
+        {/* Show helpful next steps */}
+        <div className="text-sm text-gray-500 mb-4">
+          {error.includes('CancelledByUser') || error.includes('cancelled') ? (
+            <div>
+              <p>• The authentication window was closed</p>
+              <p>• This is normal behavior for demos</p>
+              <p>• Click "Start Teams Authentication" again to retry</p>
+            </div>
+          ) : (
+            <div>
+              <p>• This may be expected when running outside of Teams environment</p>
+              <p>• Check your Azure AD configuration</p>
+              <p>• Try the "Test API Endpoint" button to verify setup</p>
+            </div>
+          )}
+        </div>
+
+        {/* Show current authentication status */}
+        <div className="p-3 bg-blue-50 rounded-lg">
+          <div className="text-sm text-blue-800">
+            <strong>Current Status:</strong> {getStatusMessage()}
+          </div>
         </div>
       </div>
     );
@@ -601,6 +673,31 @@ export default function TeamsTab() {
                   <div><strong>Email:</strong> {userInfo.email}</div>
                   <div><strong>UPN:</strong> {userInfo.upn}</div>
                 </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Enhanced Authentication Status */}
+        <div className="p-4 bg-indigo-50 rounded-lg">
+          <h2 className="font-semibold text-indigo-800 mb-2">Authentication Status</h2>
+          <div className="text-sm text-gray-700">
+            <div className="flex items-center mb-2">
+              <div className={`w-3 h-3 rounded-full mr-2 ${
+                checkAuthenticationStatus() === 'success' ? 'bg-green-500' :
+                checkAuthenticationStatus() === 'token_available' ? 'bg-blue-500' :
+                checkAuthenticationStatus() === 'in_progress' ? 'bg-yellow-500' :
+                'bg-gray-400'
+              }`}></div>
+              <span className="capitalize">{checkAuthenticationStatus().replace('_', ' ')}</span>
+            </div>
+            <div className="text-gray-600 mb-2">
+              {getStatusMessage()}
+            </div>
+            {checkAuthenticationStatus() === 'not_authenticated' && (
+              <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
+                <strong>Demo Tip:</strong> Click "Start Teams Authentication" to begin the OAuth flow.
+                You can close the popup window after seeing "Authentication Successful" - this is normal behavior.
               </div>
             )}
           </div>
