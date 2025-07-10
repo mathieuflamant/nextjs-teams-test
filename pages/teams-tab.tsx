@@ -35,6 +35,8 @@ export default function TeamsTab() {
   const [context, setContext] = useState<unknown>(null);
   const [tokenExchangeStatus, setTokenExchangeStatus] = useState<string>('idle');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
+  const [teamsTestResult, setTeamsTestResult] = useState<string>('');
+  const [teamsContextData, setTeamsContextData] = useState<any>(null);
 
   useEffect(() => {
     const initializeTeams = async () => {
@@ -152,13 +154,20 @@ export default function TeamsTab() {
     try {
       // Test basic Teams SDK functions
       console.log("Testing Teams SDK functions...");
+      setTeamsTestResult('Testing Teams SDK functions...');
       
       // Test getting context again
       const currentContext = await microsoftTeams.app.getContext();
       console.log("Current context:", currentContext);
       
+      // Update UI with results
+      setTeamsContextData(currentContext);
+      setTeamsTestResult('Teams SDK test completed successfully!');
+      
     } catch (error) {
       console.error("Teams function test error:", error);
+      setTeamsTestResult(`Teams SDK test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setTeamsContextData(null);
     }
   };
 
@@ -287,6 +296,25 @@ export default function TeamsTab() {
         >
           Test Teams Functions
         </button>
+
+        {teamsTestResult && (
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h2 className="font-semibold text-blue-800 mb-2">Teams SDK Test Results</h2>
+            <div className="text-sm text-gray-700">
+              <div className="mb-2">
+                <strong>Status:</strong> {teamsTestResult}
+              </div>
+              {teamsContextData && (
+                <div>
+                  <strong>Teams Context Data:</strong>
+                  <div className="bg-gray-100 p-2 rounded text-xs font-mono break-all max-h-40 overflow-y-auto">
+                    <pre>{JSON.stringify(teamsContextData, null, 2)}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         <button
           onClick={testApiEndpoint}
