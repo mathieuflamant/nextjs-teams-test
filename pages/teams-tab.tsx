@@ -36,7 +36,7 @@ export default function TeamsTab() {
   const [tokenExchangeStatus, setTokenExchangeStatus] = useState<string>('idle');
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [teamsTestResult, setTeamsTestResult] = useState<string>('');
-  const [teamsContextData, setTeamsContextData] = useState<unknown>(null);
+  const [teamsContextData, setTeamsContextData] = useState<Record<string, unknown> | string | null>(null);
 
   useEffect(() => {
     const initializeTeams = async () => {
@@ -161,7 +161,7 @@ export default function TeamsTab() {
       console.log("Current context:", currentContext);
       
       // Update UI with results
-      setTeamsContextData(currentContext);
+      setTeamsContextData(typeof currentContext === 'string' ? currentContext : { ...currentContext });
       setTeamsTestResult('Teams SDK test completed successfully!');
       
     } catch (error) {
@@ -308,7 +308,11 @@ export default function TeamsTab() {
                 <div>
                   <strong>Teams Context Data:</strong>
                   <div className="bg-gray-100 p-2 rounded text-xs font-mono break-all max-h-40 overflow-y-auto">
-                    <pre>{teamsContextData ? JSON.stringify(teamsContextData as Record<string, unknown>, null, 2) : ''}</pre>
+                    {typeof teamsContextData === 'object' && teamsContextData !== null ? (
+                      <pre>{JSON.stringify(teamsContextData, null, 2)}</pre>
+                    ) : typeof teamsContextData === 'string' ? (
+                      <pre>{teamsContextData}</pre>
+                    ) : null}
                   </div>
                 </div>
               )}
