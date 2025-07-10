@@ -9,6 +9,26 @@ interface UserInfo {
 }
 
 export default function TeamsTab() {
+  // Add custom font styling
+  useEffect(() => {
+    // Apply font and font-smoothing styles
+    const style = document.createElement('style');
+    style.textContent = `
+      * {
+        font-family: 'Courier New', Courier, monospace !important;
+        -webkit-font-smoothing: grayscale !important;
+        -moz-osx-font-smoothing: grayscale !important;
+        font-smoothing: grayscale !important;
+      }
+    `;
+    document.head.appendChild(style);
+
+    // Cleanup on unmount
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
+
   const [isInitialized, setIsInitialized] = useState(false);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
