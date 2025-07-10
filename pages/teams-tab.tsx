@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import * as microsoftTeams from "@microsoft/teams-js";
 
 interface UserInfo {
@@ -327,88 +327,7 @@ export default function TeamsTab() {
     }
   };
 
-  useEffect(() => {
-    const initializeTeams = async () => {
-      try {
-        // Initialize the Teams app
-        await microsoftTeams.app.initialize();
-        setIsInitialized(true);
-        
-        // Get the current context
-        const context = await microsoftTeams.app.getContext();
-        setContext(context);
-        
-        // Try to get auth token
-        try {
-          const token = await microsoftTeams.authentication.getAuthToken({
-            resources: [process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE!]
-          });
-          setAuthToken(token);
-          // Don't automatically exchange token - let user test manually
-          // await exchangeTokenForCognito(token);
-        } catch (authError: unknown) {
-          const errorMessage = authError instanceof Error ? authError.message : 'Unknown error';
-
-          if (errorMessage.includes('consent_required') || errorMessage.includes('invalid_grant')) {
-            console.warn("Consent required, falling back to interactive auth");
-            await startTeamsAuthentication();
-          } else {
-            console.warn("Auth token not available:", errorMessage);
-            setError(`Authentication failed: ${errorMessage}.`);
-          }
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize Teams');
-        console.error("Teams initialization error:", err);
-      }
-    };
-
-    initializeTeams();
-  }, []);
-
-  const exchangeTokenForCognito = async (teamsToken: string) => {
-    try {
-      setTokenExchangeStatus('exchanging');
-      const response = await fetch("/api/auth/teams", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ token: teamsToken })
-      });
-      if (!response.ok) {
-        const contentType = response.headers.get('content-type');
-
-        if (contentType && contentType.includes('application/json')) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Token exchange failed');
-        } else {
-          const errorText = await response.text();
-          const errorDetails = `HTTP ${response.status} - Content-Type: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
-          throw new Error(`API Error: ${errorDetails}`);
-        }
-      }
-
-      const contentType = response.headers.get('content-type');
-
-      if (!contentType || !contentType.includes('application/json')) {
-        const errorText = await response.text();
-        const errorDetails = `Expected JSON but got: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
-        throw new Error(`API Error: ${errorDetails}`);
-      }
-
-      const result = await response.json();
-      setUserInfo(result.user as UserInfo);
-      setTokenExchangeStatus('success');
-      console.log('Token exchange successful:', result);
-    } catch (error) {
-      console.error('Token exchange error:', error);
-      setTokenExchangeStatus('error');
-      setError(error instanceof Error ? error.message : 'Token exchange failed');
-    }
-  };
-
-  const startTeamsAuthentication = async () => {
+  const startTeamsAuthentication = useCallback(async () => {
     try {
       setTokenExchangeStatus('exchanging');
       setError(null); // Clear any previous errors
@@ -457,6 +376,87 @@ export default function TeamsTab() {
         setTokenExchangeStatus('error');
         setError(`Authentication failed: ${errorMessage}`);
       }
+    }
+  }, [userInfo]);
+
+  useEffect(() => {
+    const initializeTeams = async () => {
+      try {
+        // Initialize the Teams app
+        await microsoftTeams.app.initialize();
+        setIsInitialized(true);
+        
+        // Get the current context
+        const context = await microsoftTeams.app.getContext();
+        setContext(context);
+        
+        // Try to get auth token
+        try {
+          const token = await microsoftTeams.authentication.getAuthToken({
+            resources: [process.env.NEXT_PUBLIC_AZURE_APP_RESOURCE!]
+          });
+          setAuthToken(token);
+          // Don't automatically exchange token - let user test manually
+          // await exchangeTokenForCognito(token);
+        } catch (authError: unknown) {
+          const errorMessage = authError instanceof Error ? authError.message : 'Unknown error';
+
+          if (errorMessage.includes('consent_required') || errorMessage.includes('invalid_grant')) {
+            console.warn("Consent required, falling back to interactive auth");
+            await startTeamsAuthentication();
+          } else {
+            console.warn("Auth token not available:", errorMessage);
+            setError(`Authentication failed: ${errorMessage}.`);
+          }
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to initialize Teams');
+        console.error("Teams initialization error:", err);
+      }
+    };
+
+    initializeTeams();
+  }, [startTeamsAuthentication]);
+
+  const exchangeTokenForCognito = async (teamsToken: string) => {
+    try {
+      setTokenExchangeStatus('exchanging');
+      const response = await fetch("/api/auth/teams", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: teamsToken })
+      });
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+
+        if (contentType && contentType.includes('application/json')) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Token exchange failed');
+        } else {
+          const errorText = await response.text();
+          const errorDetails = `HTTP ${response.status} - Content-Type: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
+          throw new Error(`API Error: ${errorDetails}`);
+        }
+      }
+
+      const contentType = response.headers.get('content-type');
+
+      if (!contentType || !contentType.includes('application/json')) {
+        const errorText = await response.text();
+        const errorDetails = `Expected JSON but got: ${contentType || 'none'} - Response: ${errorText.substring(0, 100)}...`;
+        throw new Error(`API Error: ${errorDetails}`);
+      }
+
+      const result = await response.json();
+      setUserInfo(result.user as UserInfo);
+      setTokenExchangeStatus('success');
+      console.log('Token exchange successful:', result);
+    } catch (error) {
+      console.error('Token exchange error:', error);
+      setTokenExchangeStatus('error');
+      setError(error instanceof Error ? error.message : 'Token exchange failed');
     }
   };
 
@@ -590,13 +590,13 @@ export default function TeamsTab() {
             <div>
               <p>• The authentication window was closed</p>
               <p>• This is normal behavior for demos</p>
-              <p>• Click "Start Teams Authentication" again to retry</p>
+              <p>• Click &quot;Start Teams Authentication&quot; again to retry</p>
             </div>
           ) : (
             <div>
               <p>• This may be expected when running outside of Teams environment</p>
               <p>• Check your Azure AD configuration</p>
-              <p>• Try the "Test API Endpoint" button to verify setup</p>
+              <p>• Try the &quot;Test API Endpoint&quot; button to verify setup</p>
             </div>
           )}
         </div>
@@ -696,8 +696,8 @@ export default function TeamsTab() {
             </div>
             {checkAuthenticationStatus() === 'not_authenticated' && (
               <div className="text-xs text-gray-500 bg-gray-100 p-2 rounded">
-                <strong>Demo Tip:</strong> Click "Start Teams Authentication" to begin the OAuth flow.
-                You can close the popup window after seeing "Authentication Successful" - this is normal behavior.
+                <strong>Demo Tip:</strong> Click &quot;Start Teams Authentication&quot; to begin the OAuth flow.
+                You can close the popup window after seeing &quot;Authentication Successful&quot; - this is normal behavior.
               </div>
             )}
           </div>
