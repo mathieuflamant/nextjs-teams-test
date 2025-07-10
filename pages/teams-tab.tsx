@@ -19,6 +19,8 @@ export default function TeamsTab() {
         -webkit-font-smoothing: grayscale !important;
         -moz-osx-font-smoothing: grayscale !important;
         font-smoothing: grayscale !important;
+        color: rgb(253, 246, 242) !important;
+        background-color: #111827 !important;
       }
     `;
     document.head.appendChild(style);
