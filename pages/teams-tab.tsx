@@ -22,6 +22,40 @@ export default function TeamsTab() {
         color: rgb(253, 246, 242) !important;
         background-color: #111827 !important;
       }
+      button {
+        margin: 1rem;
+        padding: 1rem;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 1rem;
+        align-items: center !important;
+        background-color: rgb(51, 72, 96) !important;
+        background-image: none !important;
+        border-bottom-color: rgb(39, 39, 42) !important;
+        border-bottom-style: solid !important;
+        border-bottom-width: 1px !important;
+        border-collapse: collapse !important;
+        border-image-outset: 0 !important;
+        border-image-repeat: stretch !important;
+        border-image-slice: 100% !important;
+        border-image-source: none !important;
+        border-image-width: 1 !important;
+        border-left-color: rgb(39, 39, 42) !important;
+        border-left-style: solid !important;
+        border-left-width: 1px !important;
+        border-right-color: rgb(39, 39, 42) !important;
+        border-right-style: solid !important;
+        border-right-width: 1px !important;
+        border-top-color: rgb(39, 39, 42) !important;
+        border-top-style: solid !important;
+        border-top-width: 1px !important;
+        box-sizing: border-box !important;
+        border-radius: 0.5rem;
+        color: rgb(253, 246, 242) !important;
+      }
+      button:hover {
+        background-color: rgb(204, 132, 96) !important;
+      }
     `;
     document.head.appendChild(style);
 
