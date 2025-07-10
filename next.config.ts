@@ -12,6 +12,25 @@ const nextConfig: NextConfig = {
     COGNITO_EXTERNAL_PROVIDER: process.env.COGNITO_EXTERNAL_PROVIDER,
     AZURE_CLIENT_SECRET: process.env.AZURE_CLIENT_SECRET,
   },
+  webpack: (config, { isServer }) => {
+    // Handle Adaptive Cards library module resolution
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      fs: false,
+      path: false,
+    };
+
+    // Handle ES modules in node_modules
+    config.module.rules.push({
+      test: /\.m?js$/,
+      type: 'javascript/auto',
+      resolve: {
+        fullySpecified: false,
+      },
+    });
+
+    return config;
+  },
 };
 
 export default nextConfig;
