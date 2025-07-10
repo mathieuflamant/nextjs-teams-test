@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import * as microsoftTeams from "@microsoft/teams-js";
+import * as AdaptiveCards from "adaptivecards";
 
 interface UserInfo {
   sub: string;
@@ -73,6 +74,209 @@ export default function TeamsTab() {
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [teamsTestResult, setTeamsTestResult] = useState<string>('');
   const [teamsContextData, setTeamsContextData] = useState<Record<string, unknown> | string | null>(null);
+  const [teamsContextCard, setTeamsContextCard] = useState<HTMLElement | null>(null);
+  const [apiResultsCard, setApiResultsCard] = useState<HTMLElement | null>(null);
+
+  // Helper function to create Teams Context Adaptive Card
+  const createTeamsContextCard = (contextData: any) => {
+    const card = new AdaptiveCards.AdaptiveCard();
+
+    // Add header
+    const headerBlock = new AdaptiveCards.TextBlock();
+    headerBlock.text = "Teams Context";
+    headerBlock.size = AdaptiveCards.TextSize.Large;
+    headerBlock.weight = AdaptiveCards.TextWeight.Bolder;
+    card.addItem(headerBlock);
+
+    // Add user information if available
+    if (contextData.user) {
+      const userHeader = new AdaptiveCards.TextBlock();
+      userHeader.text = "User Information";
+      userHeader.size = AdaptiveCards.TextSize.Medium;
+      userHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      card.addItem(userHeader);
+
+      if (contextData.user.id) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `User ID: ${contextData.user.id}`;
+        card.addItem(fact);
+      }
+      if (contextData.user.displayName) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Display Name: ${contextData.user.displayName}`;
+        card.addItem(fact);
+      }
+      if (contextData.user.userPrincipalName) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `UPN: ${contextData.user.userPrincipalName}`;
+        card.addItem(fact);
+      }
+      if (contextData.user.email) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Email: ${contextData.user.email}`;
+        card.addItem(fact);
+      }
+    }
+
+    // Add team information if available
+    if (contextData.team) {
+      const teamHeader = new AdaptiveCards.TextBlock();
+      teamHeader.text = "Team Information";
+      teamHeader.size = AdaptiveCards.TextSize.Medium;
+      teamHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      card.addItem(teamHeader);
+
+      if (contextData.team.id) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Team ID: ${contextData.team.id}`;
+        card.addItem(fact);
+      }
+      if (contextData.team.displayName) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Team Name: ${contextData.team.displayName}`;
+        card.addItem(fact);
+      }
+      if (contextData.team.internalId) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Internal ID: ${contextData.team.internalId}`;
+        card.addItem(fact);
+      }
+    }
+
+    // Add channel information if available
+    if (contextData.channel) {
+      const channelHeader = new AdaptiveCards.TextBlock();
+      channelHeader.text = "Channel Information";
+      channelHeader.size = AdaptiveCards.TextSize.Medium;
+      channelHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      card.addItem(channelHeader);
+
+      if (contextData.channel.id) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Channel ID: ${contextData.channel.id}`;
+        card.addItem(fact);
+      }
+      if (contextData.channel.displayName) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Channel Name: ${contextData.channel.displayName}`;
+        card.addItem(fact);
+      }
+    }
+
+    // Add app information if available
+    if (contextData.app) {
+      const appHeader = new AdaptiveCards.TextBlock();
+      appHeader.text = "App Information";
+      appHeader.size = AdaptiveCards.TextSize.Medium;
+      appHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      card.addItem(appHeader);
+
+      if (contextData.app.id) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `App ID: ${contextData.app.id}`;
+        card.addItem(fact);
+      }
+      if (contextData.app.sessionId) {
+        const fact = new AdaptiveCards.TextBlock();
+        fact.text = `Session ID: ${contextData.app.sessionId}`;
+        card.addItem(fact);
+      }
+    }
+
+    // Add context type information
+    const contextHeader = new AdaptiveCards.TextBlock();
+    contextHeader.text = "Context Details";
+    contextHeader.size = AdaptiveCards.TextSize.Medium;
+    contextHeader.weight = AdaptiveCards.TextWeight.Bolder;
+    card.addItem(contextHeader);
+
+    const typeBlock = new AdaptiveCards.TextBlock();
+    typeBlock.text = `Context Type: ${typeof contextData}`;
+    card.addItem(typeBlock);
+
+    const localeBlock = new AdaptiveCards.TextBlock();
+    localeBlock.text = `Locale: ${contextData.locale || "Not available"}`;
+    card.addItem(localeBlock);
+
+    const themeBlock = new AdaptiveCards.TextBlock();
+    themeBlock.text = `Theme: ${contextData.theme || "Not available"}`;
+    card.addItem(themeBlock);
+
+    return card.render();
+  };
+
+  // Helper function to create API Test Results Adaptive Card
+  const createApiResultsCard = (status: string, userInfo: UserInfo | null, error: string | null) => {
+    const card = new AdaptiveCards.AdaptiveCard();
+
+    // Add header
+    const headerBlock = new AdaptiveCards.TextBlock();
+    headerBlock.text = "API Test Results";
+    headerBlock.size = AdaptiveCards.TextSize.Large;
+    headerBlock.weight = AdaptiveCards.TextWeight.Bolder;
+    card.addItem(headerBlock);
+
+    // Add status with color coding
+    const statusColor = status === 'success' ? AdaptiveCards.TextColor.Good :
+                       status === 'error' ? AdaptiveCards.TextColor.Attention :
+                       status === 'exchanging' ? AdaptiveCards.TextColor.Warning : AdaptiveCards.TextColor.Default;
+
+    const statusBlock = new AdaptiveCards.TextBlock();
+    statusBlock.text = `Status: ${status.toUpperCase()}`;
+    statusBlock.color = statusColor;
+    statusBlock.weight = AdaptiveCards.TextWeight.Bolder;
+    statusBlock.size = AdaptiveCards.TextSize.Medium;
+    card.addItem(statusBlock);
+
+    // Add user information if available
+    if (userInfo) {
+      const userHeader = new AdaptiveCards.TextBlock();
+      userHeader.text = "User Information";
+      userHeader.size = AdaptiveCards.TextSize.Medium;
+      userHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      card.addItem(userHeader);
+
+      const nameBlock = new AdaptiveCards.TextBlock();
+      nameBlock.text = `Name: ${userInfo.name}`;
+      card.addItem(nameBlock);
+
+      const emailBlock = new AdaptiveCards.TextBlock();
+      emailBlock.text = `Email: ${userInfo.email}`;
+      card.addItem(emailBlock);
+
+      const upnBlock = new AdaptiveCards.TextBlock();
+      upnBlock.text = `UPN: ${userInfo.upn}`;
+      card.addItem(upnBlock);
+
+      const subBlock = new AdaptiveCards.TextBlock();
+      subBlock.text = `Subject: ${userInfo.sub}`;
+      card.addItem(subBlock);
+    }
+
+    // Add error information if available
+    if (error) {
+      const errorHeader = new AdaptiveCards.TextBlock();
+      errorHeader.text = "Error Details";
+      errorHeader.size = AdaptiveCards.TextSize.Medium;
+      errorHeader.weight = AdaptiveCards.TextWeight.Bolder;
+      errorHeader.color = AdaptiveCards.TextColor.Attention;
+      card.addItem(errorHeader);
+
+      const errorBlock = new AdaptiveCards.TextBlock();
+      errorBlock.text = error;
+      errorBlock.color = AdaptiveCards.TextColor.Attention;
+      errorBlock.wrap = true;
+      card.addItem(errorBlock);
+    }
+
+    // Add retry button
+    const retryAction = new AdaptiveCards.ActionSubmit();
+    retryAction.title = "Retry Test";
+    retryAction.data = "retry-api-test";
+    card.addAction(retryAction);
+
+    return card.render();
+  };
 
   useEffect(() => {
     const initializeTeams = async () => {
@@ -200,10 +404,15 @@ export default function TeamsTab() {
       setTeamsContextData(typeof currentContext === 'string' ? currentContext : { ...currentContext });
       setTeamsTestResult('Teams SDK test completed successfully!');
       
+      // Create and store the Adaptive Card
+      const contextCard = createTeamsContextCard(currentContext);
+      setTeamsContextCard(contextCard);
+
     } catch (error) {
       console.error("Teams function test error:", error);
       setTeamsTestResult(`Teams SDK test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
       setTeamsContextData(null);
+      setTeamsContextCard(null);
     }
   };
 
@@ -222,28 +431,50 @@ export default function TeamsTab() {
             setTokenExchangeStatus('success');
             setError(null);
             setUserInfo(data.user as UserInfo);
+
+            // Create and store the Adaptive Card
+            const resultsCard = createApiResultsCard('success', data.user as UserInfo, null);
+            setApiResultsCard(resultsCard);
           } else {
             setTokenExchangeStatus('error');
             // Display debug information in the error message
             const debugInfo = data.debug ? `\n\nDebug Info:\n${Object.entries(data.debug).map(([key, value]) => `${key}: ${value}`).join('\n')}` : '';
-            setError(`API Test Failed: ${data.error}${debugInfo}`);
+            const errorMessage = `API Test Failed: ${data.error}${debugInfo}`;
+            setError(errorMessage);
+
+            // Create and store the Adaptive Card with error
+            const resultsCard = createApiResultsCard('error', null, errorMessage);
+            setApiResultsCard(resultsCard);
           }
         } else {
           const text = await response.text();
           const errorDetails = `API returned non-JSON: ${contentType || 'none'} - Response: ${text.substring(0, 100)}...`;
           setTokenExchangeStatus('error');
           setError(`API Test Failed: ${errorDetails}`);
+
+          // Create and store the Adaptive Card with error
+          const resultsCard = createApiResultsCard('error', null, `API Test Failed: ${errorDetails}`);
+          setApiResultsCard(resultsCard);
         }
       } else {
         const text = await response.text();
         const errorDetails = `HTTP ${response.status} - Content-Type: ${contentType || 'none'} - Response: ${text.substring(0, 100)}...`;
         setTokenExchangeStatus('error');
         setError(`API Test Failed: ${errorDetails}`);
+
+        // Create and store the Adaptive Card with error
+        const resultsCard = createApiResultsCard('error', null, `API Test Failed: ${errorDetails}`);
+        setApiResultsCard(resultsCard);
       }
 
     } catch (error) {
       setTokenExchangeStatus('error');
-      setError(`API Test Error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      const errorMessage = `API Test Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      setError(errorMessage);
+
+      // Create and store the Adaptive Card with error
+      const resultsCard = createApiResultsCard('error', null, errorMessage);
+      setApiResultsCard(resultsCard);
     }
   };
 
@@ -333,6 +564,19 @@ export default function TeamsTab() {
           Test Teams Functions
         </button>
 
+        {/* Display Teams Context Adaptive Card */}
+        {teamsContextCard && (
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h2 className="font-semibold text-blue-800 mb-2">Teams Context (Adaptive Card)</h2>
+            <div ref={(el) => {
+              if (el && teamsContextCard) {
+                el.innerHTML = '';
+                el.appendChild(teamsContextCard);
+              }
+            }} />
+          </div>
+        )}
+
         {teamsTestResult && (
           <div className="p-4 bg-blue-50 rounded-lg">
             <h2 className="font-semibold text-blue-800 mb-2">Teams SDK Test Results</h2>
@@ -342,7 +586,7 @@ export default function TeamsTab() {
               </div>
               {teamsContextData && (
                 <div>
-                  <strong>Teams Context Data:</strong>
+                  <strong>Teams Context Data (Raw JSON):</strong>
                   <div className="bg-gray-100 p-2 rounded text-xs font-mono break-all max-h-40 overflow-y-auto">
                     {typeof teamsContextData === 'object' && teamsContextData !== null ? (
                       <pre>{JSON.stringify(teamsContextData, null, 2)}</pre>
@@ -362,6 +606,19 @@ export default function TeamsTab() {
         >
           Test API Endpoint
         </button>
+
+        {/* Display API Results Adaptive Card */}
+        {apiResultsCard && (
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <h2 className="font-semibold text-yellow-800 mb-2">API Test Results (Adaptive Card)</h2>
+            <div ref={(el) => {
+              if (el && apiResultsCard) {
+                el.innerHTML = '';
+                el.appendChild(apiResultsCard);
+              }
+            }} />
+          </div>
+        )}
 
         <button
           onClick={startTeamsAuthentication}
